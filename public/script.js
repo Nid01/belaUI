@@ -236,6 +236,24 @@ function updateSensors(sensors) {
   $("#sensors").html(sensorList);
 }
 
+function updateUsbSsd(files) {
+  const fileList = [];
+
+  for (const i in files) {
+    data = files[i];
+
+    const entryHtml = `
+      <tr>
+        <td class="file"></td>
+      </tr>`;
+    const entry = $($.parseHTML(entryHtml));
+    entry.find(".file").text(data);
+    fileList.push(entry);
+  }
+
+  $("#usbssd").html(fileList);
+}
+
 /* Remote status */
 let remoteConnectedHideTimer;
 function showRemoteStatus(status) {
@@ -458,7 +476,7 @@ function updateStatus(status) {
       updateButtonAndSettingsShow({
         add: "btn-success",
         remove: "btn-danger",
-        text: "Start test2",
+        text: "Start",
         enabled: true,
         settingsShow: true,
       });
@@ -1729,6 +1747,9 @@ function handleMessage(msg) {
         break;
       case "sensors":
         updateSensors(msg[type]);
+        break;
+      case "usbssd":
+        updateUsbSsd(msg[type]);
         break;
       case "status":
         updateStatus(msg[type]);

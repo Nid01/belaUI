@@ -3504,6 +3504,20 @@ if (sensorsFunc) {
   setInterval(updateSensors, 1000);
 }
 
+let files = {};
+
+async function updateUsbSsd() {
+  try {
+    files = await readdirP("/mnt/usbssd");
+  } catch (err) {
+    console.log("Error in updateUsbSsd(): " + err);
+  }
+  broadcastMsg("usbssd", files);
+}
+
+updateUsbSsd();
+setInterval(updateUsbSsd, 1000 * 5);
+
 async function isServiceEnabled(service) {
   const isEnabled = await execPNR(`systemctl is-enabled ${service}`);
   return isEnabled.code === 0;

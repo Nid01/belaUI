@@ -21,7 +21,7 @@ let config = {};
 let ws = null;
 
 function getThemeSetting() {
-  return $('#themeSelector>select').val();
+  return $("#themeSelector>select").val();
 }
 
 function updateTheme(theme) {
@@ -29,51 +29,55 @@ function updateTheme(theme) {
     theme = getThemeSetting();
   }
 
-  if (theme == 'auto') {
-    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      theme = 'dark';
+  if (theme == "auto") {
+    if (
+      window.matchMedia &&
+      window.matchMedia("(prefers-color-scheme: dark)").matches
+    ) {
+      theme = "dark";
     }
   }
 
-  if (theme == 'dark') {
-    $('body').addClass('dark');
+  if (theme == "dark") {
+    $("body").addClass("dark");
   } else {
-    $('body').removeClass('dark');
+    $("body").removeClass("dark");
   }
 }
 
 // Load the persistent setting, if available
 function loadThemeSetting() {
-  const s = localStorage.getItem('theme');
+  const s = localStorage.getItem("theme");
   if (s) {
-    $('#themeSelector>select').val(s);
+    $("#themeSelector>select").val(s);
   }
   updateTheme();
 }
 loadThemeSetting();
 
 // Update the theme if the selector is changed
-$('#themeSelector>select').change(function () {
+$("#themeSelector>select").change(function () {
   const s = getThemeSetting();
-  localStorage.setItem('theme', s);
+  localStorage.setItem("theme", s);
   updateTheme(s);
 });
 
 // Update the theme if the system preference changes
 if (window.matchMedia) {
-  window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', function() {
-    updateTheme();
-  });
+  window
+    .matchMedia("(prefers-color-scheme: dark)")
+    .addEventListener("change", function () {
+      updateTheme();
+    });
 }
-
 
 function tryConnect() {
   let c = new WebSocket("ws://" + window.location.host);
-  c.addEventListener('message', function (event) {
+  c.addEventListener("message", function (event) {
     handleMessage(JSON.parse(event.data));
   });
 
-  c.addEventListener('close', function (event) {
+  c.addEventListener("close", function (event) {
     ws = null;
 
     showError("Disconnected from BELABOX. Trying to reconnect...");
@@ -82,11 +86,11 @@ function tryConnect() {
     updateNetact(false);
   });
 
-  c.addEventListener('open', function (event) {
+  c.addEventListener("open", function (event) {
     ws = c;
 
     hideError();
-    $('#notifications').empty();
+    $("#notifications").empty();
     tryTokenAuth();
     updateNetact(true);
   });
@@ -103,18 +107,17 @@ tryConnect();
    The periodic keep-alive packets let the server know that this client is still
    active and should receive updates.
 */
-setInterval(function() {
+setInterval(function () {
   if (ws) {
-    ws.send(JSON.stringify({keepalive: null}));
+    ws.send(JSON.stringify({ keepalive: null }));
   }
 }, 10000);
 
-
 /* Authentication */
 function tryTokenAuth() {
-  let authToken = localStorage.getItem('authToken');
+  let authToken = localStorage.getItem("authToken");
   if (authToken) {
-    ws.send(JSON.stringify({auth: {token: authToken}}));
+    ws.send(JSON.stringify({ auth: { token: authToken } }));
   } else {
     showLoginForm();
   }
@@ -123,21 +126,21 @@ function tryTokenAuth() {
 function handleAuthResult(msg) {
   if (msg.success === true) {
     if (msg.auth_token) {
-      localStorage.setItem('authToken', msg.auth_token);
+      localStorage.setItem("authToken", msg.auth_token);
     }
     // Reset state
     modems = {};
     wifiIfs = {};
 
     // Reset the UI
-    $('#login').addClass('d-none');
-    $('#initialPasswordForm').addClass('d-none');
+    $("#login").addClass("d-none");
+    $("#initialPasswordForm").addClass("d-none");
     hideError();
-    $('#notifications').empty();
-    $('#wifi').empty();
-    $('#modemManager').empty();
-    $('#main').removeClass('d-none');
-    $('#localSettings').removeClass('d-none');
+    $("#notifications").empty();
+    $("#wifi").empty();
+    $("#modemManager").empty();
+    $("#main").removeClass("d-none");
+    $("#localSettings").removeClass("d-none");
   } else if (!isShowingInitialPasswordForm) {
     showLoginForm();
   }
@@ -145,29 +148,28 @@ function handleAuthResult(msg) {
 
 /* Show the revision number */
 function setRevisions(revs) {
-  let list = '';
+  let list = "";
   for (s in revs) {
-    if (list != '') list += ', ';
+    if (list != "") list += ", ";
     list += `${s}\xa0${revs[s]}`;
   }
 
-  $('#revisions').text(list);
+  $("#revisions").text(list);
 }
-
 
 /* Network interfaces list */
 function setNetif(name, ip, enabled) {
-  ws.send(JSON.stringify({'netif': {'name': name, 'ip': ip, 'enabled': enabled}}));
+  ws.send(JSON.stringify({ netif: { name: name, ip: ip, enabled: enabled } }));
 }
 
 function genNetifEntry(error, enabled, name, ip, throughput, isBold = false) {
-  let checkbox = '';
+  let checkbox = "";
   if (enabled != undefined) {
     const esc_name = name.replaceAll("'", "\\'");
     const esc_ip = ip.replaceAll("'", "\\'");
     checkbox = `<input type="checkbox"
                  onclick="setNetif('${esc_name}', '${esc_ip}', this.checked)"
-                 ${enabled ? 'checked' : ''}>`;
+                 ${enabled ? "checked" : ""}>`;
   }
 
   const html = `
@@ -175,17 +177,17 @@ function genNetifEntry(error, enabled, name, ip, throughput, isBold = false) {
       <td>${checkbox}</td>
       <td class="netif_name"></td>
       <td class="netif_ip"></td>
-      <td class="netif_tp ${isBold ? 'font-weight-bold' : ''}"></td>
+      <td class="netif_tp ${isBold ? "font-weight-bold" : ""}"></td>
     </tr>`;
 
   const entry = $($.parseHTML(html));
-  entry.find('.netif_name').text(name);
-  entry.find('.netif_ip').text(ip);
-  entry.find('.netif_tp').text(throughput);
+  entry.find(".netif_name").text(name);
+  entry.find(".netif_ip").text(ip);
+  entry.find(".netif_tp").text(throughput);
   if (error) {
-    const cb = entry.find('input');
-    cb.attr('disabled', true);
-    cb.attr('title', `Can't enable: ${error}`);
+    const cb = entry.find("input");
+    cb.attr("disabled", true);
+    cb.attr("title", `Can't enable: ${error}`);
   }
 
   return entry;
@@ -197,17 +199,21 @@ function updateNetif(netifs) {
 
   for (const i in netifs) {
     data = netifs[i];
-    tpKbps = Math.round((data['tp'] * 8) / 1024);
+    tpKbps = Math.round((data["tp"] * 8) / 1024);
     totalKbps += tpKbps;
 
-    modemList.push(genNetifEntry(data.error, data.enabled, i, data.ip, `${tpKbps} Kbps`));
+    modemList.push(
+      genNetifEntry(data.error, data.enabled, i, data.ip, `${tpKbps} Kbps`)
+    );
   }
 
   if (Object.keys(netifs).length > 1) {
-    modemList.push(genNetifEntry(undefined, undefined, '', '', `${totalKbps} Kbps`, true));
+    modemList.push(
+      genNetifEntry(undefined, undefined, "", "", `${totalKbps} Kbps`, true)
+    );
   }
 
-  $('#modems').html(modemList);
+  $("#modems").html(modemList);
 }
 
 function updateSensors(sensors) {
@@ -222,14 +228,13 @@ function updateSensors(sensors) {
         <td class="sensor_value"></td>
       </tr>`;
     const entry = $($.parseHTML(entryHtml));
-    entry.find('.sensor_name').text(i);
-    entry.find('.sensor_value').text(data);
+    entry.find(".sensor_name").text(i);
+    entry.find(".sensor_value").text(data);
     sensorList.push(entry);
   }
 
-  $('#sensors').html(sensorList);
+  $("#sensors").html(sensorList);
 }
-
 
 /* Remote status */
 let remoteConnectedHideTimer;
@@ -240,104 +245,112 @@ function showRemoteStatus(status) {
   }
 
   if (status === true) {
-    $('#remoteStatus').removeClass('alert-danger');
-    $('#remoteStatus').addClass('alert-success');
-    $('#remoteStatus').text("BELABOX cloud remote: connected");
-    remoteConnectedHideTimer = setTimeout(function() {
-      $('#remoteStatus').addClass('d-none');
+    $("#remoteStatus").removeClass("alert-danger");
+    $("#remoteStatus").addClass("alert-success");
+    $("#remoteStatus").text("BELABOX cloud remote: connected");
+    remoteConnectedHideTimer = setTimeout(function () {
+      $("#remoteStatus").addClass("d-none");
       remoteConnectedHideTimer = undefined;
     }, 5000);
   } else if (status.error) {
-    switch(status.error) {
-      case 'network':
-        $('#remoteStatus').text("BELABOX cloud remote: network error. Trying to reconnect...\n");
+    switch (status.error) {
+      case "network":
+        $("#remoteStatus").text(
+          "BELABOX cloud remote: network error. Trying to reconnect...\n"
+        );
         break;
-      case 'key':
-        $('#remoteStatus').text("BELABOX cloud remote: invalid key\n");
+      case "key":
+        $("#remoteStatus").text("BELABOX cloud remote: invalid key\n");
         break;
       default:
         return;
     }
 
-    $('#remoteStatus').addClass('alert-danger');
-    $('#remoteStatus').removeClass('alert-success');
+    $("#remoteStatus").addClass("alert-danger");
+    $("#remoteStatus").removeClass("alert-success");
   } else {
     return;
   }
-  $('#remoteStatus').removeClass('d-none');
+  $("#remoteStatus").removeClass("d-none");
 }
-
 
 /* Software updates */
 function showSoftwareUpdates(status) {
   if (status) {
     if (status.package_count) {
-      $('#softwareUpdate span.desc').text(`(${status.package_count} packages, ${status.download_size})`);
+      $("#softwareUpdate span.desc").text(
+        `(${status.package_count} packages, ${status.download_size})`
+      );
     } else {
-      $('#softwareUpdate span.desc').text('(up to date)');
+      $("#softwareUpdate span.desc").text("(up to date)");
     }
-    $('#softwareUpdate').attr('disabled', !status.package_count);
+    $("#softwareUpdate").attr("disabled", !status.package_count);
   } else if (status === null) {
-    $('#softwareUpdate span.desc').text('(checking for updates...)');
-    $('#softwareUpdate').attr('disabled', true);
+    $("#softwareUpdate span.desc").text("(checking for updates...)");
+    $("#softwareUpdate").attr("disabled", true);
   }
   if (status === false) {
-     $('#softwareUpdate').addClass('d-none');
+    $("#softwareUpdate").addClass("d-none");
   } else {
-    $('#softwareUpdate').removeClass('d-none');
+    $("#softwareUpdate").removeClass("d-none");
   }
 }
 
 function showSoftwareUpdateValue(cls, value, total) {
   if (value > 0) {
     $(`#softwareUpdateStatus .${cls} .value`).text(`${value} / ${total}`);
-    $(`#softwareUpdateStatus .${cls}`).removeClass('d-none');
+    $(`#softwareUpdateStatus .${cls}`).removeClass("d-none");
   } else {
-    $(`#softwareUpdateStatus .${cls}`).addClass('d-none');
+    $(`#softwareUpdateStatus .${cls}`).addClass("d-none");
   }
 }
 
 function showSoftwareUpdateStatus(status) {
   if (!status) {
-    $('#softwareUpdateStatus').addClass('d-none');
+    $("#softwareUpdateStatus").addClass("d-none");
     return;
   }
 
-  $('#startStop, #softwareUpdate, .command-btn').attr('disabled', status.result === undefined);
+  $("#startStop, #softwareUpdate, .command-btn").attr(
+    "disabled",
+    status.result === undefined
+  );
 
-  showSoftwareUpdateValue('downloading', status.downloading, status.total);
-  showSoftwareUpdateValue('unpacking', status.unpacking, status.total);
-  showSoftwareUpdateValue('setting-up', status.setting_up, status.total);
+  showSoftwareUpdateValue("downloading", status.downloading, status.total);
+  showSoftwareUpdateValue("unpacking", status.unpacking, status.total);
+  showSoftwareUpdateValue("setting-up", status.setting_up, status.total);
 
   if (status.result === 0) {
-    $('#softwareUpdateStatus p.result').text('Update completed. Restarting the encoder...');
-    $('#softwareUpdateStatus p.result').removeClass('text-danger');
-    $('#softwareUpdateStatus p.result').addClass('text-success');
-    $('#softwareUpdateStatus .result').removeClass('d-none');
+    $("#softwareUpdateStatus p.result").text(
+      "Update completed. Restarting the encoder..."
+    );
+    $("#softwareUpdateStatus p.result").removeClass("text-danger");
+    $("#softwareUpdateStatus p.result").addClass("text-success");
+    $("#softwareUpdateStatus .result").removeClass("d-none");
   } else if (status.result !== undefined) {
-    $('#softwareUpdateStatus p.result').text("Update error: " + status.result);
-    $('#softwareUpdateStatus p.result').removeClass('text-success');
-    $('#softwareUpdateStatus p.result').addClass('text-danger');
-    $('#softwareUpdateStatus .result').removeClass('d-none');
+    $("#softwareUpdateStatus p.result").text("Update error: " + status.result);
+    $("#softwareUpdateStatus p.result").removeClass("text-success");
+    $("#softwareUpdateStatus p.result").addClass("text-danger");
+    $("#softwareUpdateStatus .result").removeClass("d-none");
   } else {
-    $('#softwareUpdateStatus .result').addClass('d-none');
+    $("#softwareUpdateStatus .result").addClass("d-none");
   }
 
-  $('#softwareUpdateStatus').removeClass('d-none');
+  $("#softwareUpdateStatus").removeClass("d-none");
 }
 
-$('#softwareUpdate').click(function() {
-  const msg = 'Are you sure you want to start a software update? ' +
-              'This may take several minutes. ' +
-              'You won\'t be able to start a stream until it\'s completed. ' +
-              'The encoder will briefly disconnect after a successful upgrade. ' +
-              'Never remove power or reset the encoder while updating. If the encoder is powered from a battery, ensure it\'s fully charged.';
+$("#softwareUpdate").click(function () {
+  const msg =
+    "Are you sure you want to start a software update? " +
+    "This may take several minutes. " +
+    "You won't be able to start a stream until it's completed. " +
+    "The encoder will briefly disconnect after a successful upgrade. " +
+    "Never remove power or reset the encoder while updating. If the encoder is powered from a battery, ensure it's fully charged.";
 
   if (confirm(msg)) {
-    send_command('update');
+    send_command("update");
   }
 });
-
 
 /* SSH status / control */
 let sshStatus;
@@ -348,28 +361,33 @@ function showSshStatus(s) {
 
   if (!sshStatus) return;
 
-  const pass = !config.ssh_pass ? 'password not set' : (sshStatus.user_pass ? 'user-set password' : config.ssh_pass)
-  $('label[for=sshPassword]').text(`SSH password (username: ${sshStatus.user})`);
+  const pass = !config.ssh_pass
+    ? "password not set"
+    : sshStatus.user_pass
+    ? "user-set password"
+    : config.ssh_pass;
+  $("label[for=sshPassword]").text(
+    `SSH password (username: ${sshStatus.user})`
+  );
 
-  $('#sshPassword').val(pass);
+  $("#sshPassword").val(pass);
   if (sshStatus.active) {
-    $('#startSsh').addClass('d-none');
-    $('#stopSsh').removeClass('d-none');
+    $("#startSsh").addClass("d-none");
+    $("#stopSsh").removeClass("d-none");
   } else {
-    $('#stopSsh').addClass('d-none');
-    $('#startSsh').removeClass('d-none');
+    $("#stopSsh").addClass("d-none");
+    $("#startSsh").removeClass("d-none");
   }
-  $('#sshSettings').removeClass('d-none');
+  $("#sshSettings").removeClass("d-none");
 }
 
-$('#resetSshPass').click(function() {
-  const msg = 'Are you sure you want to reset the SSH password?';
+$("#resetSshPass").click(function () {
+  const msg = "Are you sure you want to reset the SSH password?";
 
   if (confirm(msg)) {
-    send_command('reset_ssh_pass');
+    send_command("reset_ssh_pass");
   }
 });
-
 
 /* Audio device / codec selection */
 let audioSrcList = [];
@@ -424,7 +442,6 @@ function updateAudioCodecs(list) {
   }
 }
 
-
 /* status updates */
 function updateStatus(status) {
   if (status.is_streaming !== undefined) {
@@ -441,7 +458,7 @@ function updateStatus(status) {
       updateButtonAndSettingsShow({
         add: "btn-success",
         remove: "btn-danger",
-        text: "Start",
+        text: "Start test2",
         enabled: true,
         settingsShow: true,
       });
@@ -481,7 +498,6 @@ function updateStatus(status) {
   }
 }
 
-
 /* Configuration loading */
 function loadConfig(c) {
   config = c;
@@ -495,22 +511,21 @@ function loadConfig(c) {
 
   const srtlaAddr = config.srtla_addr ?? "";
   showHideRelayHint(srtlaAddr);
-  $('#srtlaAddr').val(srtlaAddr);
-  $('#srtlaPort').val(config.srtla_port ?? "");
-  $('#srtStreamid').val(config.srt_streamid ?? "");
+  $("#srtlaAddr").val(srtlaAddr);
+  $("#srtlaPort").val(config.srtla_port ?? "");
+  $("#srtStreamid").val(config.srt_streamid ?? "");
 
-  $("#bitrateOverlay").prop('checked', config.bitrate_overlay)
+  $("#bitrateOverlay").prop("checked", config.bitrate_overlay);
 
-  $('#autoStart').prop('checked', config.autostart ?? false);
-  $('#autoStartForm button[type=submit]').prop('disabled', true);
-  $('#remoteDeviceKey').val(config.remote_key);
-  $('#remoteKeyForm button[type=submit]').prop('disabled', true);
+  $("#autoStart").prop("checked", config.autostart ?? false);
+  $("#autoStartForm button[type=submit]").prop("disabled", true);
+  $("#remoteDeviceKey").val(config.remote_key);
+  $("#remoteKeyForm button[type=submit]").prop("disabled", true);
 
   if (config.ssh_pass && sshStatus) {
     showSshStatus();
   }
 }
-
 
 /* Pipelines */
 function updateOptionList(select, options, selected) {
@@ -527,11 +542,11 @@ function updateOptionList(select, options, selected) {
 
       let entry = select.find(`.${id}`);
       if (entry.length == 0) {
-        const html = '<option></option>'
+        const html = "<option></option>";
         entry = $($.parseHTML(html));
         entry.addClass(id);
-        entry.data('option_id', id);
-        entry.attr('value', value);
+        entry.data("option_id", id);
+        entry.attr("value", value);
 
         if (prevOption) {
           entry.insertAfter(prevOption);
@@ -545,11 +560,11 @@ function updateOptionList(select, options, selected) {
         entry.text(contents);
       }
       const isDisabled = options[o][value].disabled;
-      if (entry.attr('disabled') != isDisabled) {
-        entry.attr('disabled', isDisabled);
+      if (entry.attr("disabled") != isDisabled) {
+        entry.attr("disabled", isDisabled);
       }
-      const isSelected = (selected && value == selected);
-      const wasSelected = entry.attr('selected') == 'selected';
+      const isSelected = selected && value == selected;
+      const wasSelected = entry.attr("selected") == "selected";
       if (isSelected && !wasSelected) {
         entryToSelect = entry;
       }
@@ -562,9 +577,9 @@ function updateOptionList(select, options, selected) {
   } // for o in options
 
   // Delete removed options
-  select.find('option').each(function() {
-    const option = $(this)
-    const optionId = option.data('option_id');
+  select.find("option").each(function () {
+    const option = $(this);
+    const optionId = option.data("option_id");
     if (optionId && !validIds[optionId]) {
       option.remove();
     }
@@ -573,11 +588,11 @@ function updateOptionList(select, options, selected) {
   // Update the selected entry if it's changed
   // First, we have to deselect any other entries
   for (const e of entriesToDeselect) {
-    e.attr('selected', false);
+    e.attr("selected", false);
   }
 
   if (entryToSelect) {
-    entryToSelect.attr('selected', true);
+    entryToSelect.attr("selected", true);
   }
 }
 
@@ -587,9 +602,9 @@ function updatePipelines(ps) {
     pipelines = ps;
   }
 
-  updateOptionList($('#pipelines'), [pipelines], config.pipeline);
+  updateOptionList($("#pipelines"), [pipelines], config.pipeline);
 
-  pipelineSelectHandler($('#pipelines').val())
+  pipelineSelectHandler($("#pipelines").val());
 }
 
 function pipelineSelectHandler(s) {
@@ -597,50 +612,54 @@ function pipelineSelectHandler(s) {
   if (!p) return;
 
   if (p.asrc) {
-    $('#selectAudioSource').removeClass('d-none');
+    $("#selectAudioSource").removeClass("d-none");
   } else {
-    $('#selectAudioSource').addClass('d-none');
+    $("#selectAudioSource").addClass("d-none");
   }
 
   if (p.acodec) {
-    $('#selectAudioCodec').removeClass('d-none');
+    $("#selectAudioCodec").removeClass("d-none");
   } else {
-    $('#selectAudioCodec').addClass('d-none');
+    $("#selectAudioCodec").addClass("d-none");
   }
 }
 
-$("#pipelines").change(function(ev) {
+$("#pipelines").change(function (ev) {
   pipelineSelectHandler(ev.target.value);
 });
 
 /* Remote relays config */
 let isValidRelaySelection = true;
 function updateRelaySettings() {
-  if ($('#relayServer').val() == 'manual') {
-    $('.remote-relay-account').addClass('d-none');
-    $('.manual-relay-addr, .manual-streamid').removeClass('d-none');
+  if ($("#relayServer").val() == "manual") {
+    $(".remote-relay-account").addClass("d-none");
+    $(".manual-relay-addr, .manual-streamid").removeClass("d-none");
     isValidRelaySelection = true;
   } else {
-    $('.manual-relay-addr').addClass('d-none');
-    $('.remote-relay-account').removeClass('d-none');
-    if ($('#relayAccount').val() == 'manual') {
-      $('.manual-streamid').removeClass('d-none');
+    $(".manual-relay-addr").addClass("d-none");
+    $(".remote-relay-account").removeClass("d-none");
+    if ($("#relayAccount").val() == "manual") {
+      $(".manual-streamid").removeClass("d-none");
     } else {
-      $('.manual-streamid').addClass('d-none');
+      $(".manual-streamid").addClass("d-none");
     }
-    isValidRelaySelection = ($('#relayAccount').val() !== null);
+    isValidRelaySelection = $("#relayAccount").val() !== null;
   }
 
   if (isValidRelaySelection) {
-    removeNotification('relay_account_unavailable');
+    removeNotification("relay_account_unavailable");
   } else {
-    showNotification({name: 'relay_account_unavailable', type: 'error',
-                      msg: 'Your selected relay server account is no longer available. ' +
-                           'Please select a different one to start the stream.'});
+    showNotification({
+      name: "relay_account_unavailable",
+      type: "error",
+      msg:
+        "Your selected relay server account is no longer available. " +
+        "Please select a different one to start the stream.",
+    });
   }
   updateButtonEnabledDisabled();
 }
-$('#relayServer, #relayAccount').change(function() {
+$("#relayServer, #relayAccount").change(function () {
   updateRelaySettings();
 });
 
@@ -650,11 +669,11 @@ function updateRelays(r) {
     relays = r;
   }
 
-  const preset = {manual: {name: 'Manual configuration'}};
+  const preset = { manual: { name: "Manual configuration" } };
 
   let selectedServer = config.relay_server;
   if (!relays || config.srtla_addr || config.srtla_port) {
-    selectedServer = 'manual';
+    selectedServer = "manual";
   } else if (!config.relay_server || !relays.servers[config.relay_server]) {
     for (const s in relays.servers) {
       if (relays.servers[s].default) {
@@ -662,116 +681,131 @@ function updateRelays(r) {
       }
     }
   }
-  updateOptionList($('#relayServer'), [relays ? relays.servers : {}, preset], selectedServer);
+  updateOptionList(
+    $("#relayServer"),
+    [relays ? relays.servers : {}, preset],
+    selectedServer
+  );
 
   let selectedAccount = config.relay_account;
   if (!relays || config.srt_streamid !== undefined) {
-    selectedAccount = 'manual';
+    selectedAccount = "manual";
   } else if (config.relay_account) {
     if (!relays.accounts[config.relay_account]) {
-      preset['unavailable'] = {name: 'No longer available', disabled: true};
-      selectedAccount = 'unavailable';
+      preset["unavailable"] = { name: "No longer available", disabled: true };
+      selectedAccount = "unavailable";
     }
   }
-  updateOptionList($('#relayAccount'), [relays ? relays.accounts : {}, preset], selectedAccount);
+  updateOptionList(
+    $("#relayAccount"),
+    [relays ? relays.accounts : {}, preset],
+    selectedAccount
+  );
 
   updateRelaySettings();
 }
 
 /* Bitrate setting updates */
 function updateBitrate(br) {
-  $('#bitrateSlider').slider('option', 'value', br.max_br);
+  $("#bitrateSlider").slider("option", "value", br.max_br);
   showBitrate(br.max_br);
 }
-
 
 /* WiFi manager */
 function wifiScan(button, deviceId) {
   if (!ws) return;
 
   // Disable the search button immediately
-  const wifiManager = $(button).parents('.wifi-settings');
-  wifiManager.find('.wifi-scan-button').attr('disabled', true);
+  const wifiManager = $(button).parents(".wifi-settings");
+  wifiManager.find(".wifi-scan-button").attr("disabled", true);
 
   // Send the request
-  ws.send(JSON.stringify({wifi: {scan: deviceId}}));
+  ws.send(JSON.stringify({ wifi: { scan: deviceId } }));
 
   // Duration
   const searchDuration = 10000;
 
-  setTimeout(function() {
-    wifiManager.find('.wifi-scan-button').attr('disabled', false);
-    wifiManager.find('.scanning').addClass('d-none');
+  setTimeout(function () {
+    wifiManager.find(".wifi-scan-button").attr("disabled", false);
+    wifiManager.find(".scanning").addClass("d-none");
   }, searchDuration);
 
-  wifiManager.find('.connect-error').addClass('d-none');
-  wifiManager.find('.scanning').removeClass('d-none');
+  wifiManager.find(".connect-error").addClass("d-none");
+  wifiManager.find(".scanning").removeClass("d-none");
 }
 
 function wifiSendNewConnection() {
-  $('#wifiNewErrAuth').addClass('d-none');
-  $('#wifiNewErrGeneric').addClass('d-none');
-  $('#wifiNewConnecting').removeClass('d-none');
+  $("#wifiNewErrAuth").addClass("d-none");
+  $("#wifiNewErrGeneric").addClass("d-none");
+  $("#wifiNewConnecting").removeClass("d-none");
 
-  $('#wifiConnectButton').attr('disabled', true);
+  $("#wifiConnectButton").attr("disabled", true);
 
-  const device = $('#connection-device').val();
-  const ssid = $('#connection-ssid').val();
-  const password = $('#connection-password').val();
+  const device = $("#connection-device").val();
+  const ssid = $("#connection-ssid").val();
+  const password = $("#connection-password").val();
 
-  ws.send(JSON.stringify({
-    wifi: {
-      new: {
-        device,
-        ssid,
-        password
-      }
-    }
-  }));
+  ws.send(
+    JSON.stringify({
+      wifi: {
+        new: {
+          device,
+          ssid,
+          password,
+        },
+      },
+    })
+  );
 
   return false;
 }
 
 function wifiConnect(e) {
-  const network = $(e).parents('tr.network').data('network');
+  const network = $(e).parents("tr.network").data("network");
 
   if (network.active) return;
 
   if (network.uuid) {
-    ws.send(JSON.stringify({wifi: {connect: network.uuid}}));
+    ws.send(JSON.stringify({ wifi: { connect: network.uuid } }));
 
-    const wifiManager = $(e).parents('.wifi-settings');
-    wifiManager.find('.connect-error').addClass('d-none');
-    wifiManager.find('.connecting').removeClass('d-none');
+    const wifiManager = $(e).parents(".wifi-settings");
+    wifiManager.find(".connect-error").addClass("d-none");
+    wifiManager.find(".connecting").removeClass("d-none");
   } else {
     if (network.security === "") {
       if (confirm(`Connect to the open network ${network.ssid}?`)) {
-        ws.send(JSON.stringify({
-          wifi: {
-            new: {
-              ssid: network.ssid,
-              device: network.device
-            }
-          }
-        }));
+        ws.send(
+          JSON.stringify({
+            wifi: {
+              new: {
+                ssid: network.ssid,
+                device: network.device,
+              },
+            },
+          })
+        );
       }
     } else {
-      if (network.security.match('802.1X')) {
-        alert("This network uses 802.1X enterprise authentication, " +
-              "which belaUI doesn't support at the moment");
-      } else if (network.security.match('WEP')) {
-        alert("This network uses legacy WEP authentication, " +
-              "which belaUI doesn't support");
+      if (network.security.match("802.1X")) {
+        alert(
+          "This network uses 802.1X enterprise authentication, " +
+            "which belaUI doesn't support at the moment"
+        );
+      } else if (network.security.match("WEP")) {
+        alert(
+          "This network uses legacy WEP authentication, " +
+            "which belaUI doesn't support"
+        );
       } else {
-        $('#connection-ssid').val(network.ssid);
-        $('#connection-device').val(network.device);
-        $('#connection-password').val('');
-        $('.wifi-new-status').addClass('d-none');
-        $('#wifiConnectButton').attr('disabled', false);
-        $('#wifiModal').modal({ show: true });
+        $("#connection-ssid").val(network.ssid);
+        $("#connection-device").val(network.device);
+        $("#connection-password").val("");
+        $(".wifi-new-status").addClass("d-none");
+        $("#wifiConnectButton").attr("disabled", false);
+        $("#wifiModal").modal({ show: true });
 
         setTimeout(() => {
-          $('#connection-password').focus();
+          $("#connection-password").focus();
         }, 500);
       }
     }
@@ -779,26 +813,30 @@ function wifiConnect(e) {
 }
 
 function wifiDisconnect(e) {
-  const network = $(e).parents('tr').data('network');
+  const network = $(e).parents("tr").data("network");
 
   if (confirm(`Disconnect from ${network.ssid}?`)) {
-    ws.send(JSON.stringify({
-      wifi: {
-        disconnect: network.uuid
-      },
-    }));
+    ws.send(
+      JSON.stringify({
+        wifi: {
+          disconnect: network.uuid,
+        },
+      })
+    );
   }
 }
 
 function wifiForget(e) {
-  const network = $(e).parents('tr').data('network');
+  const network = $(e).parents("tr").data("network");
 
   if (confirm(`Forget network ${network.ssid}?`)) {
-    ws.send(JSON.stringify({
-      wifi: {
-        forget: network.uuid
-      },
-    }));
+    ws.send(
+      JSON.stringify({
+        wifi: {
+          forget: network.uuid,
+        },
+      })
+    );
   }
 }
 
@@ -853,27 +891,35 @@ function wifiListAvailableNetwork(device, deviceId, a) {
     </tr>`;
 
   const network = $($.parseHTML(html));
-  network.find('.signal').html(wifiSignalSymbol(a.signal));// + '%');
-  network.find('.band').html((a.freq > 5000) ? '5&#13203;' : '2.4&#13203;');
-  const ssidEl = network.find('.ssid');
+  network.find(".signal").html(wifiSignalSymbol(a.signal)); // + '%');
+  network.find(".band").html(a.freq > 5000 ? "5&#13203;" : "2.4&#13203;");
+  const ssidEl = network.find(".ssid");
   ssidEl.text(a.ssid);
 
-  network.data('network', {active: a.active, uuid: savedUuid, ssid: a.ssid, device: deviceId, security: a.security});
+  network.data("network", {
+    active: a.active,
+    uuid: savedUuid,
+    ssid: a.ssid,
+    device: deviceId,
+    security: a.security,
+  });
 
-  if (a.security != '') {
+  if (a.security != "") {
     // show a cross mark for 802.1X or WEP networks (unsupported)
     // or a lock symbol for PSK networks (supported)
-    network.find('.security').html(a.security.match(/802\.1X|WEP/) ? '&#10060;' : '&#128274;');
+    network
+      .find(".security")
+      .html(a.security.match(/802\.1X|WEP/) ? "&#10060;" : "&#128274;");
   }
   if (a.active) {
-    network.find('.disconnect').removeClass('d-none');
-    network.find('.connected').removeClass('d-none');
+    network.find(".disconnect").removeClass("d-none");
+    network.find(".connected").removeClass("d-none");
   }
   if (!a.active) {
-    network.find('.ssid').addClass('can-connect');
+    network.find(".ssid").addClass("can-connect");
   }
   if (savedUuid) {
-    network.find('.forget').removeClass('d-none');
+    network.find(".forget").removeClass("d-none");
   }
 
   return network;
@@ -893,9 +939,9 @@ function wifiListSavedNetwork(ssid, uuid) {
     </tr>`;
 
   const network = $($.parseHTML(html));
-  network.find('.ssid').text(ssid);
+  network.find(".ssid").text(ssid);
 
-  network.data('network', {ssid, uuid});
+  network.data("network", { ssid, uuid });
 
   return network;
 }
@@ -904,41 +950,43 @@ function wifiCheckHotspotSettings(deviceId) {
   if (!wifiIfs[deviceId] || !wifiIfs[deviceId].hotspot) return;
 
   const cardId = wifiFindCardId(deviceId);
-  const form = $(`#${cardId}`).find('.hotspot');
+  const form = $(`#${cardId}`).find(".hotspot");
 
   let anyValueChanged = false;
   let allValuesValid = true;
 
-  const nameInput = form.find('.hotspot-name').val();
+  const nameInput = form.find(".hotspot-name").val();
   if (nameInput != wifiIfs[deviceId].hotspot.name) {
     anyValueChanged = true;
-    const hint = form.find('.hotspot-name-hint');
+    const hint = form.find(".hotspot-name-hint");
     if (nameInput.length < 1 || nameInput.length > 32) {
-      hint.removeClass('d-none');
+      hint.removeClass("d-none");
       allValuesValid = false;
     } else {
-      hint.addClass('d-none');
+      hint.addClass("d-none");
     }
   }
 
-  const passwordInput = form.find('.hotspot-password').val();
+  const passwordInput = form.find(".hotspot-password").val();
   if (passwordInput != wifiIfs[deviceId].hotspot.password) {
     anyValueChanged = true;
-    const hint = form.find('.hotspot-password-hint');
+    const hint = form.find(".hotspot-password-hint");
     if (passwordInput.length < 8 || passwordInput.length > 64) {
-      hint.removeClass('d-none');
+      hint.removeClass("d-none");
       allValuesValid = false;
     } else {
-      hint.addClass('d-none');
+      hint.addClass("d-none");
     }
   }
 
-  const channelInput = form.find('.hotspot-channel');
+  const channelInput = form.find(".hotspot-channel");
   if (channelInput.val() != wifiIfs[deviceId].hotspot.channel) {
     anyValueChanged = true;
   }
 
-  form.find('.hotspot-config-save').attr('disabled', !anyValueChanged || !allValuesValid)
+  form
+    .find(".hotspot-config-save")
+    .attr("disabled", !anyValueChanged || !allValuesValid);
 }
 
 let wifiIfs = {};
@@ -1042,66 +1090,106 @@ function updateWifiState(msg) {
 
       deviceCard = $($.parseHTML(html));
 
-      deviceCard.find('button.showHidePassword').click(showHidePassword);
+      deviceCard.find("button.showHidePassword").click(showHidePassword);
 
-      deviceCard.find('button.hotspot-mode').click(function() {
-        if (confirm('This will immediately disconnect the WiFi adapter from any connected networks and turn on the hotspot. Proceed?')) {
-          ws.send(JSON.stringify({wifi: {hotspot: {start: {device: deviceId}}}}));
+      deviceCard.find("button.hotspot-mode").click(function () {
+        if (
+          confirm(
+            "This will immediately disconnect the WiFi adapter from any connected networks and turn on the hotspot. Proceed?"
+          )
+        ) {
+          ws.send(
+            JSON.stringify({
+              wifi: { hotspot: { start: { device: deviceId } } },
+            })
+          );
         }
       });
 
-      deviceCard.find('button.client-mode').click(function() {
-        if (confirm('This will immediately disconnect any connected clients and disable the hotspot. Proceed?')) {
-          ws.send(JSON.stringify({wifi: {hotspot: {stop: {device: deviceId}}}}));
+      deviceCard.find("button.client-mode").click(function () {
+        if (
+          confirm(
+            "This will immediately disconnect any connected clients and disable the hotspot. Proceed?"
+          )
+        ) {
+          ws.send(
+            JSON.stringify({
+              wifi: { hotspot: { stop: { device: deviceId } } },
+            })
+          );
         }
       });
 
-      deviceCard.find('.hotspot-name, .hotspot-password, .hotspot-channel').on('input', function() {wifiCheckHotspotSettings(deviceId)});
+      deviceCard
+        .find(".hotspot-name, .hotspot-password, .hotspot-channel")
+        .on("input", function () {
+          wifiCheckHotspotSettings(deviceId);
+        });
 
-      deviceCard.find('button.hotspot-config-save').click(function() {
+      deviceCard.find("button.hotspot-config-save").click(function () {
         let config = {
           device: deviceId,
-          name: deviceCard.find('input.hotspot-name').val(),
-          password: deviceCard.find('input.hotspot-password').val(),
-          channel: deviceCard.find('select.hotspot-channel').val(),
+          name: deviceCard.find("input.hotspot-name").val(),
+          password: deviceCard.find("input.hotspot-password").val(),
+          channel: deviceCard.find("select.hotspot-channel").val(),
         };
-        ws.send(JSON.stringify({wifi: {hotspot: {config}}}));
+        ws.send(JSON.stringify({ wifi: { hotspot: { config } } }));
 
-        $(this).attr('disabled', true);
-        deviceCard.find('.save-error, .saved').addClass('d-none');
-        deviceCard.find('.saving').removeClass('d-none');
+        $(this).attr("disabled", true);
+        deviceCard.find(".save-error, .saved").addClass("d-none");
+        deviceCard.find(".saving").removeClass("d-none");
       });
 
-      deviceCard.appendTo('#wifi');
+      deviceCard.appendTo("#wifi");
     }
 
     // Update the card's header
-    deviceCard.find('.device-name').text(device.ifname);
-    deviceCard.find('.device-hw').text(device.hw ? ` (${device.hw})` : '');
+    deviceCard.find(".device-name").text(device.ifname);
+    deviceCard.find(".device-hw").text(device.hw ? ` (${device.hw})` : "");
 
     // Disable or enable the hotspot mode button depending on whether the hardware supports it
-    deviceCard.find('button.hotspot-mode').attr('disabled', (!device.supports_hotspot && !device.hotspot));
+    deviceCard
+      .find("button.hotspot-mode")
+      .attr("disabled", !device.supports_hotspot && !device.hotspot);
 
     if (device.hotspot) {
-      if (!wifiIfs[deviceId] || !wifiIfs[deviceId].hotspot || wifiIfs[deviceId].hotspot.name != device.hotspot.name) {
-        deviceCard.find('.hotspot-name').val(device.hotspot.name);
+      if (
+        !wifiIfs[deviceId] ||
+        !wifiIfs[deviceId].hotspot ||
+        wifiIfs[deviceId].hotspot.name != device.hotspot.name
+      ) {
+        deviceCard.find(".hotspot-name").val(device.hotspot.name);
       }
-      if (!wifiIfs[deviceId] || !wifiIfs[deviceId].hotspot || wifiIfs[deviceId].hotspot.password != device.hotspot.password) {
-        deviceCard.find('.hotspot-password').val(device.hotspot.password);
+      if (
+        !wifiIfs[deviceId] ||
+        !wifiIfs[deviceId].hotspot ||
+        wifiIfs[deviceId].hotspot.password != device.hotspot.password
+      ) {
+        deviceCard.find(".hotspot-password").val(device.hotspot.password);
       }
-      if (!wifiIfs[deviceId] || !wifiIfs[deviceId].hotspot || wifiIfs[deviceId].hotspot.channel != device.hotspot.channel) {
-        updateOptionList(deviceCard.find('select.hotspot-channel'),
-                         [device.hotspot.available_channels], device.hotspot.channel);
+      if (
+        !wifiIfs[deviceId] ||
+        !wifiIfs[deviceId].hotspot ||
+        wifiIfs[deviceId].hotspot.channel != device.hotspot.channel
+      ) {
+        updateOptionList(
+          deviceCard.find("select.hotspot-channel"),
+          [device.hotspot.available_channels],
+          device.hotspot.channel
+        );
       }
 
-      if (device.hotspot.warnings && device.hotspot.warnings.includes('modified')) {
-        deviceCard.find('.hotspot-modified').removeClass('d-none');
+      if (
+        device.hotspot.warnings &&
+        device.hotspot.warnings.includes("modified")
+      ) {
+        deviceCard.find(".hotspot-modified").removeClass("d-none");
       } else {
-        deviceCard.find('.hotspot-modified').addClass('d-none');
+        deviceCard.find(".hotspot-modified").addClass("d-none");
       }
 
-      deviceCard.find('.client').addClass('d-none');
-      deviceCard.find('.hotspot').removeClass('d-none');
+      deviceCard.find(".client").addClass("d-none");
+      deviceCard.find(".hotspot").removeClass("d-none");
     } else {
       // Show the available networks
       let networkList = [];
@@ -1118,7 +1206,7 @@ function updateWifiState(msg) {
         }
       }
 
-      deviceCard.find('.available-networks').html(networkList);
+      deviceCard.find(".available-networks").html(networkList);
 
       // Show the saved networks
       networkList = [];
@@ -1128,14 +1216,14 @@ function updateWifiState(msg) {
       }
 
       if (networkList.length) {
-        deviceCard.find('tbody.saved-networks').html(networkList);
-        deviceCard.find('table.saved-networks').removeClass('d-none');
+        deviceCard.find("tbody.saved-networks").html(networkList);
+        deviceCard.find("table.saved-networks").removeClass("d-none");
       } else {
-        deviceCard.find('table.saved-networks').addClass('d-none');
+        deviceCard.find("table.saved-networks").addClass("d-none");
       }
 
-      deviceCard.find('.hotspot').addClass('d-none');
-      deviceCard.find('.client').removeClass('d-none');
+      deviceCard.find(".hotspot").addClass("d-none");
+      deviceCard.find(".client").removeClass("d-none");
     }
   }
 
@@ -1152,61 +1240,59 @@ function updateWifiState(msg) {
 function handleWifiResult(msg) {
   if (msg.connect !== undefined) {
     const wifiManagerId = `#${wifiFindCardId(msg.device)}`;
-    $(wifiManagerId).find('.connecting').addClass('d-none');
+    $(wifiManagerId).find(".connecting").addClass("d-none");
     if (msg.connect === false) {
-      $(wifiManagerId).find('.connect-error').removeClass('d-none');
+      $(wifiManagerId).find(".connect-error").removeClass("d-none");
     }
   } else if (msg.new) {
     if (msg.new.error) {
-      $('#wifiNewConnecting').addClass('d-none');
+      $("#wifiNewConnecting").addClass("d-none");
 
       switch (msg.new.error) {
-        case 'auth':
-          $('#wifiNewErrAuth').removeClass('d-none');
+        case "auth":
+          $("#wifiNewErrAuth").removeClass("d-none");
           break;
-        case 'generic':
-          $('#wifiNewErrGeneric').removeClass('d-none');
+        case "generic":
+          $("#wifiNewErrGeneric").removeClass("d-none");
           break;
       }
 
-      $('#wifiConnectButton').attr('disabled', false);
+      $("#wifiConnectButton").attr("disabled", false);
     }
     if (msg.new.success) {
-      $('#wifiModal').modal('hide');
+      $("#wifiModal").modal("hide");
     }
   } else if (msg.hotspot) {
     if (msg.hotspot.config) {
       const wifiManager = $(`#${wifiFindCardId(msg.hotspot.config.device)}`);
 
       if (msg.hotspot.config.success) {
-        wifiManager.find('.save-error, .saving').addClass('d-none');
-        wifiManager.find('.saved').removeClass('d-none');
-
+        wifiManager.find(".save-error, .saving").addClass("d-none");
+        wifiManager.find(".saved").removeClass("d-none");
       } else if (msg.hotspot.config.error) {
         let errMsg;
 
         switch (msg.hotspot.config.error) {
-          case 'name':
-          case 'password':
-          case 'channel':
+          case "name":
+          case "password":
+          case "channel":
             errMsg = `invalid ${msg.hotspot.config.error}`;
             break;
-          case 'saving':
-          case 'activating':
-            errMsg = 'couldn\'t apply the new settings';
+          case "saving":
+          case "activating":
+            errMsg = "couldn't apply the new settings";
             break;
         }
         if (errMsg) {
-          const errorField = wifiManager.find('.save-error');
-          errorField.text('Failed to save the settings: ' + errMsg);
-          wifiManager.find('.saved, .saving').addClass('d-none');
-          errorField.removeClass('d-none');
+          const errorField = wifiManager.find(".save-error");
+          errorField.text("Failed to save the settings: " + errMsg);
+          wifiManager.find(".saved, .saving").addClass("d-none");
+          errorField.removeClass("d-none");
         }
       }
     }
   }
 }
-
 
 /* Modem manager */
 function modemFindCardId(deviceId) {
@@ -1291,86 +1377,105 @@ function updateModemsState(msg) {
 
       // Set the name
       if (device.ifname) {
-        deviceCard.find('.device-ifname').text(device.ifname);
-        deviceCard.find('.device-name').text(` (${device.name})`);
+        deviceCard.find(".device-ifname").text(device.ifname);
+        deviceCard.find(".device-name").text(` (${device.name})`);
       } else {
-        deviceCard.find('.device-name').text(device.name);
+        deviceCard.find(".device-name").text(device.name);
       }
 
       // Show the status bar, either with the no SIM message or actual signal info
       if (device.no_sim) {
-        deviceCard.find('.no-sim').removeClass('d-none');
+        deviceCard.find(".no-sim").removeClass("d-none");
       } else {
-        deviceCard.find('.signal, .status, .card-body').removeClass('d-none');
+        deviceCard.find(".signal, .status, .card-body").removeClass("d-none");
       }
 
       // Dynamically show and hide network selection depending on the roaming checkbox
-      const showHideNetworkSelection = function() {
+      const showHideNetworkSelection = function () {
         const checkbox = $(this);
-        const networkSelection = $(this).parents('.card-body').find('.network-selection-group');
-        if (checkbox.prop('checked')) {
-          networkSelection.removeClass('d-none');
+        const networkSelection = $(this)
+          .parents(".card-body")
+          .find(".network-selection-group");
+        if (checkbox.prop("checked")) {
+          networkSelection.removeClass("d-none");
         } else {
-          networkSelection.addClass('d-none');
+          networkSelection.addClass("d-none");
         }
       };
-      deviceCard.find('.roaming-input').on('change', showHideNetworkSelection);
+      deviceCard.find(".roaming-input").on("change", showHideNetworkSelection);
 
       // Check if the device supports GSM autoconfiguration
       if (device.config && device.config.autoconfig !== undefined) {
         // Dynamically show and hide APN settings depending on the autoconfig checkbox
-        const showHideApnConfig = function() {
+        const showHideApnConfig = function () {
           const checkbox = $(this);
-          const apnConfigForm = $(this).parents('.card-body').find('.apn-manual-config');
-          if (checkbox.prop('checked')) {
-            apnConfigForm.addClass('d-none');
+          const apnConfigForm = $(this)
+            .parents(".card-body")
+            .find(".apn-manual-config");
+          if (checkbox.prop("checked")) {
+            apnConfigForm.addClass("d-none");
           } else {
-            apnConfigForm.removeClass('d-none');
+            apnConfigForm.removeClass("d-none");
           }
         };
-        const checkbox = deviceCard.find('.autoconfig-input');
-        checkbox.on('change', showHideApnConfig);
-        checkbox.prop('disabled', false);
-        deviceCard.find('.autoconfig-group').removeClass('d-none');
+        const checkbox = deviceCard.find(".autoconfig-input");
+        checkbox.on("change", showHideApnConfig);
+        checkbox.prop("disabled", false);
+        deviceCard.find(".autoconfig-group").removeClass("d-none");
       }
 
-      const scanButton = deviceCard.find('.network-scan-button');
-      scanButton.click(function() {
-        if (confirm('Scanning for networks will temporarily disable the data connection of this modem. Proceed?')) {
-          scanButton.prop('disabled', true);
-          scanButton.text('Scanning...');
-          ws.send(JSON.stringify({modems: {scan: {device: deviceId}}}));
+      const scanButton = deviceCard.find(".network-scan-button");
+      scanButton.click(function () {
+        if (
+          confirm(
+            "Scanning for networks will temporarily disable the data connection of this modem. Proceed?"
+          )
+        ) {
+          scanButton.prop("disabled", true);
+          scanButton.text("Scanning...");
+          ws.send(JSON.stringify({ modems: { scan: { device: deviceId } } }));
         }
       });
 
-      const getUserConfig = function(deviceCard) {
-        const network_type = deviceCard.find('.network-type-input').val();
-        const roaming = deviceCard.find('.roaming-input').prop('checked');
-        const network = deviceCard.find('.network-selection-input').val();
-        const autoconfig = deviceCard.find('.autoconfig-input').prop('checked');
-        const apn = deviceCard.find('.apn-input').val();
-        const username = deviceCard.find('.username-input').val();
-        const password = deviceCard.find('.password-input').val();
+      const getUserConfig = function (deviceCard) {
+        const network_type = deviceCard.find(".network-type-input").val();
+        const roaming = deviceCard.find(".roaming-input").prop("checked");
+        const network = deviceCard.find(".network-selection-input").val();
+        const autoconfig = deviceCard.find(".autoconfig-input").prop("checked");
+        const apn = deviceCard.find(".apn-input").val();
+        const username = deviceCard.find(".username-input").val();
+        const password = deviceCard.find(".password-input").val();
 
-        return {network_type, roaming, network, autoconfig, apn, username, password};
+        return {
+          network_type,
+          roaming,
+          network,
+          autoconfig,
+          apn,
+          username,
+          password,
+        };
       };
 
-      deviceCard.find('.save-button').click(function() {
+      deviceCard.find(".save-button").click(function () {
         const config = getUserConfig(deviceCard);
         config.device = deviceId;
 
-        ws.send(JSON.stringify({modems: {config}}));
+        ws.send(JSON.stringify({ modems: { config } }));
 
-        $(this).prop('disabled', true);
+        $(this).prop("disabled", true);
       });
 
       // Disable or enable the save button depending on whether any values have changed
-      const inputs = deviceCard.find('input, select');
-      inputs.on('change, input', function() {
+      const inputs = deviceCard.find("input, select");
+      inputs.on("change, input", function () {
         if (!modems[deviceId] || !modems[deviceId].config) return false;
 
         const userConfig = getUserConfig(deviceCard);
-        const savedConfig = Object.assign({network_type: modems[deviceId].network_type.active}, modems[deviceId].config);
+        const savedConfig = Object.assign(
+          { network_type: modems[deviceId].network_type.active },
+          modems[deviceId].config
+        );
         let changed = false;
         for (const i in savedConfig) {
           if (userConfig[i] !== savedConfig[i]) {
@@ -1379,10 +1484,10 @@ function updateModemsState(msg) {
             break;
           }
         }
-        deviceCard.find('.save-button').prop('disabled', !changed);
+        deviceCard.find(".save-button").prop("disabled", !changed);
       });
 
-      deviceCard.appendTo('#modemManager');
+      deviceCard.appendTo("#modemManager");
     }
 
     // The following settings may be updated for an existing modem
@@ -1390,68 +1495,89 @@ function updateModemsState(msg) {
       const options = {};
       for (const i in device.network_type.supported) {
         const value = device.network_type.supported[i];
-        const name = value.replace(/g/g, 'G / ').replace(/ \/ $/, '');
-        options[value] = {name};
+        const name = value.replace(/g/g, "G / ").replace(/ \/ $/, "");
+        options[value] = { name };
       }
-      updateOptionList(deviceCard.find('.network-type-input'),
-                       [options], device.network_type.active);
+      updateOptionList(
+        deviceCard.find(".network-type-input"),
+        [options],
+        device.network_type.active
+      );
     }
 
     if (device.config) {
-      deviceCard.find('.apn-input').attr('value', device.config.apn);
-      deviceCard.find('.username-input').attr('value', device.config.username);
-      deviceCard.find('.password-input').attr('value', device.config.password);
-      deviceCard.find('.roaming-input').attr('checked', device.config.roaming);
+      deviceCard.find(".apn-input").attr("value", device.config.apn);
+      deviceCard.find(".username-input").attr("value", device.config.username);
+      deviceCard.find(".password-input").attr("value", device.config.password);
+      deviceCard.find(".roaming-input").attr("checked", device.config.roaming);
 
       // Trigger UI updates
       if (device.config.autoconfig !== undefined) {
-        deviceCard.find('.autoconfig-input').attr('checked', device.config.autoconfig);
-        deviceCard.find('.autoconfig-input').trigger('change');
+        deviceCard
+          .find(".autoconfig-input")
+          .attr("checked", device.config.autoconfig);
+        deviceCard.find(".autoconfig-input").trigger("change");
       }
-      deviceCard.find('.roaming-input').trigger('change');
+      deviceCard.find(".roaming-input").trigger("change");
     }
 
     if (device.status) {
-      deviceCard.find('.signal').html(wifiSignalSymbol(device.status.signal));
-      const statusText = `${device.status.signal}% ${device.status.network_type || ''} `+
-                         `${device.status.network || ''}${device.status.roaming ? ' (R)': ''} - ${device.status.connection}`
-      deviceCard.find('.status').text(statusText);
+      deviceCard.find(".signal").html(wifiSignalSymbol(device.status.signal));
+      const statusText =
+        `${device.status.signal}% ${device.status.network_type || ""} ` +
+        `${device.status.network || ""}${
+          device.status.roaming ? " (R)" : ""
+        } - ${device.status.connection}`;
+      deviceCard.find(".status").text(statusText);
     }
 
-    const networkSelect = deviceCard.find('.network-selection-input');
-    if (device.available_networks || device.config || networkSelect.find('option').length == 0) {
-        const selectedNetwork = (device.config ? device.config.network : ((modem && modem.config) ? modem.config.network : undefined));
-        const availableNetworks = device.available_networks || (modem ? modem.available_networks : {});
-        const auto = {'': {name: 'Automatic' + ((selectedNetwork == '') ? ' (selected)' : '')}};
-        const options = {};
-        for (const i in availableNetworks) {
-          let name = availableNetworks[i].name;
-          let availability = '';
-          if (i == selectedNetwork) {
-            availability = 'selected';
-          }
-          if (availableNetworks[i].availability) {
-            if (availability) {
-              availability += ' & ';
-            }
-            availability += availableNetworks[i].availability;
-          }
+    const networkSelect = deviceCard.find(".network-selection-input");
+    if (
+      device.available_networks ||
+      device.config ||
+      networkSelect.find("option").length == 0
+    ) {
+      const selectedNetwork = device.config
+        ? device.config.network
+        : modem && modem.config
+        ? modem.config.network
+        : undefined;
+      const availableNetworks =
+        device.available_networks || (modem ? modem.available_networks : {});
+      const auto = {
+        "": {
+          name: "Automatic" + (selectedNetwork == "" ? " (selected)" : ""),
+        },
+      };
+      const options = {};
+      for (const i in availableNetworks) {
+        let name = availableNetworks[i].name;
+        let availability = "";
+        if (i == selectedNetwork) {
+          availability = "selected";
+        }
+        if (availableNetworks[i].availability) {
           if (availability) {
-            name += ` (${availability})`
+            availability += " & ";
           }
-          options[i] = {
-            name,
-            disabled: (availableNetworks[i].availability == 'forbidden')
-          };
+          availability += availableNetworks[i].availability;
         }
-        updateOptionList(networkSelect, [auto, options], selectedNetwork);
+        if (availability) {
+          name += ` (${availability})`;
+        }
+        options[i] = {
+          name,
+          disabled: availableNetworks[i].availability == "forbidden",
+        };
+      }
+      updateOptionList(networkSelect, [auto, options], selectedNetwork);
 
-        // Re-enable the scan button after receiving the results
-        if (device.available_networks) {
-          const scanButton = deviceCard.find('.network-scan-button');
-          scanButton.prop('disabled', false);
-          scanButton.text('Scan');
-        }
+      // Re-enable the scan button after receiving the results
+      if (device.available_networks) {
+        const scanButton = deviceCard.find(".network-scan-button");
+        scanButton.prop("disabled", false);
+        scanButton.text("Scan");
+      }
     }
 
     // Update the cached modem state
@@ -1459,7 +1585,7 @@ function updateModemsState(msg) {
 
     // Disable or enable the save button if any settings have been updated
     if (device.network_type || device.config) {
-      deviceCard.find('.network-type-input').trigger('input');
+      deviceCard.find(".network-type-input").trigger("input");
     }
   }
 
@@ -1472,17 +1598,15 @@ function updateModemsState(msg) {
   }
 }
 
-
 /* Error messages */
 function showError(message) {
   $("#errorMsg>span").text(message);
-  $("#errorMsg").removeClass('d-none');
+  $("#errorMsg").removeClass("d-none");
 }
 
 function hideError() {
-  $("#errorMsg").addClass('d-none');
+  $("#errorMsg").addClass("d-none");
 }
-
 
 /* Notifications */
 function notificationId(name) {
@@ -1504,47 +1628,58 @@ function showNotification(n) {
       </div>`;
     alert = $($.parseHTML(html));
 
-    alert.attr('id', alertId);
+    alert.attr("id", alertId);
     if (n.is_dismissable) {
-      alert.addClass('alert-dismissible');
-      alert.find('button').removeClass('d-none');
+      alert.addClass("alert-dismissible");
+      alert.find("button").removeClass("d-none");
     }
 
-    alert.appendTo('#notifications');
+    alert.appendTo("#notifications");
 
     // If we've shown a new notification, scroll to the top
-    $('html, body').animate({
-      scrollTop: 0,
-      scrollLeft: 0
-    }, 200);
+    $("html, body").animate(
+      {
+        scrollTop: 0,
+        scrollLeft: 0,
+      },
+      200
+    );
   } else {
-    alert.removeClass(['alert-secondary', 'alert-danger', 'alert-warning', 'alert-success']);
-    const t = alert.data('timerHide');
+    alert.removeClass([
+      "alert-secondary",
+      "alert-danger",
+      "alert-warning",
+      "alert-success",
+    ]);
+    const t = alert.data("timerHide");
     if (t) {
       clearTimeout(t);
     }
   }
 
-  let colorClass = 'alert-secondary'
-  switch(n.type) {
-    case 'error':
+  let colorClass = "alert-secondary";
+  switch (n.type) {
+    case "error":
       alert.addClass(`alert-danger`);
       break;
-    case 'warning':
-    case 'success':
+    case "warning":
+    case "success":
       alert.addClass(`alert-${n.type}`);
       break;
   }
   alert.addClass(colorClass);
 
-  alert.find('span.msg').text(n.msg);
+  alert.find("span.msg").text(n.msg);
 
   if (n.duration) {
-    alert.data('timerHide', setTimeout(function() {
-      alert.slideUp(300, function() {
-        $(this).remove();
-      });
-    }, n.duration * 1000));
+    alert.data(
+      "timerHide",
+      setTimeout(function () {
+        alert.slideUp(300, function () {
+          $(this).remove();
+        });
+      }, n.duration * 1000)
+    );
   }
 }
 
@@ -1566,12 +1701,11 @@ function handleNotification(msg) {
   }
 }
 
-
 /* Log download */
 function downloadLog(msg) {
-  const blob = new Blob([msg.contents], {type: 'text/plain'})
+  const blob = new Blob([msg.contents], { type: "text/plain" });
 
-  const a = window.document.createElement('a');
+  const a = window.document.createElement("a");
   a.href = window.URL.createObjectURL(blob);
   a.download = msg.name;
   a.click();
@@ -1579,58 +1713,56 @@ function downloadLog(msg) {
   window.URL.revokeObjectURL(blob);
 }
 
-
 /* Handle server-to-client messages */
 function handleMessage(msg) {
   console.log(msg);
   for (const type in msg) {
-    switch(type) {
-      case 'auth':
+    switch (type) {
+      case "auth":
         handleAuthResult(msg[type]);
         break;
-      case 'revisions':
+      case "revisions":
         setRevisions(msg[type]);
         break;
-      case 'netif':
+      case "netif":
         updateNetif(msg[type]);
         break;
-      case 'sensors':
+      case "sensors":
         updateSensors(msg[type]);
         break;
-      case 'status':
+      case "status":
         updateStatus(msg[type]);
         break;
-      case 'config':
+      case "config":
         loadConfig(msg[type]);
         break;
-      case 'pipelines':
+      case "pipelines":
         updatePipelines(msg[type]);
         break;
-      case 'relays':
+      case "relays":
         updateRelays(msg[type]);
         break;
-      case 'bitrate':
+      case "bitrate":
         updateBitrate(msg[type]);
         break;
-      case 'wifi':
+      case "wifi":
         handleWifiResult(msg[type]);
         break;
-      case 'error':
+      case "error":
         showError(msg[type].msg);
         break;
-      case 'notification':
+      case "notification":
         handleNotification(msg[type]);
         break;
-      case 'log':
+      case "log":
         downloadLog(msg[type]);
         break;
-      case 'acodecs':
+      case "acodecs":
         updateAudioCodecs(msg[type]);
         break;
     }
   }
 }
-
 
 /* Start / stop */
 function getConfig() {
@@ -1647,18 +1779,18 @@ function getConfig() {
   config.delay = $("#delaySlider").slider("value");
   config.max_br = maxBr;
   config.srt_latency = $("#srtLatencySlider").slider("value");
-  config.bitrate_overlay = $("#bitrateOverlay").prop('checked');
+  config.bitrate_overlay = $("#bitrateOverlay").prop("checked");
 
-  const relayServer = $('#relayServer').val();
-  if (relayServer !== 'manual') {
+  const relayServer = $("#relayServer").val();
+  if (relayServer !== "manual") {
     config.relay_server = relayServer;
   } else {
     config.srtla_addr = $("#srtlaAddr").val();
     config.srtla_port = $("#srtlaPort").val();
   }
 
-  const relayAccount = $('#relayAccount').val();
-  if (relayServer !== 'manual' && relayAccount !== 'manual') {
+  const relayAccount = $("#relayAccount").val();
+  if (relayServer !== "manual" && relayAccount !== "manual") {
     config.relay_account = relayAccount;
   } else {
     config.srt_streamid = $("#srtStreamid").val();
@@ -1670,17 +1802,16 @@ function getConfig() {
 async function start() {
   hideError();
 
-  ws.send(JSON.stringify({start: getConfig()}));
+  ws.send(JSON.stringify({ start: getConfig() }));
 }
 
 async function stop() {
-  ws.send(JSON.stringify({stop: 0}));
+  ws.send(JSON.stringify({ stop: 0 }));
 }
 
 async function send_command(cmd) {
-  ws.send(JSON.stringify({command: cmd}));
+  ws.send(JSON.stringify({ command: cmd }));
 }
-
 
 /* UI */
 let startStopButtonIsEnabled;
@@ -1689,7 +1820,7 @@ function updateButtonEnabledDisabled(isEnabled) {
     startStopButtonIsEnabled = isEnabled;
   }
   const button = $("#startStop");
-  button.attr('disabled', !startStopButtonIsEnabled || !isValidRelaySelection);
+  button.attr("disabled", !startStopButtonIsEnabled || !isValidRelaySelection);
 }
 
 function updateButton({ add, remove, text, enabled }) {
@@ -1702,7 +1833,13 @@ function updateButton({ add, remove, text, enabled }) {
   updateButtonEnabledDisabled(enabled);
 }
 
-function updateButtonAndSettingsShow({ add, remove, text, enabled, settingsShow }) {
+function updateButtonAndSettingsShow({
+  add,
+  remove,
+  text,
+  enabled,
+  settingsShow,
+}) {
   const settingsDivs = document.getElementById("settings");
 
   if (settingsShow) {
@@ -1711,20 +1848,17 @@ function updateButtonAndSettingsShow({ add, remove, text, enabled, settingsShow 
     settingsDivs.classList.add("d-none");
   }
 
-  updateButton({add, remove, text, enabled });
+  updateButton({ add, remove, text, enabled });
 }
-
 
 function setBitrate(max) {
   if (isStreaming) {
-    ws.send(JSON.stringify({bitrate: {max_br: max}}));
+    ws.send(JSON.stringify({ bitrate: { max_br: max } }));
   }
 }
 
 function showBitrate(value) {
-  document.getElementById(
-    "bitrateValues"
-  ).value = `Max bitrate: ${value} Kbps`;
+  document.getElementById("bitrateValues").value = `Max bitrate: ${value} Kbps`;
 }
 
 function initBitrateSlider(bitrateDefault) {
@@ -1769,9 +1903,9 @@ function showSrtLatency(value) {
   document.getElementById("srtLatencyValue").value = `SRT latency: ${value} ms`;
 
   if (value < 1500) {
-    $('#latencyWarning').removeClass('d-none');
+    $("#latencyWarning").removeClass("d-none");
   } else {
-    $('#latencyWarning').addClass('d-none');
+    $("#latencyWarning").addClass("d-none");
   }
 }
 
@@ -1791,190 +1925,198 @@ function initSrtLatencySlider(defaultLatency) {
   showSrtLatency(defaultLatency);
 }
 
-
 /* UI event handlers */
 document.getElementById("startStop").addEventListener("click", () => {
   if (!isStreaming) {
-    updateButton({text: "Starting...", enabled: false});
+    updateButton({ text: "Starting...", enabled: false });
     start();
   } else {
-    updateButton({text: "Stopping...", enabled: false});
+    updateButton({ text: "Stopping...", enabled: false });
     stop();
   }
 });
 
 function updateNetact(isActive) {
   if (isActive) {
-    $('.netact, .recheck-netact').attr('disabled', false);
-    $('.recheck-netact').trigger('input');
+    $(".netact, .recheck-netact").attr("disabled", false);
+    $(".recheck-netact").trigger("input");
     showSoftwareUpdates(false);
   } else {
-    $('.netact, .recheck-netact').attr('disabled', true);
+    $(".netact, .recheck-netact").attr("disabled", true);
     updateButtonEnabledDisabled(false);
   }
 }
 
-
 function showLoginForm() {
-  $('#main').addClass('d-none');
-  $('#initialPasswordForm').addClass('d-none');
-  $('#login').removeClass('d-none');
-  $('#localSettings').removeClass('d-none');
+  $("#main").addClass("d-none");
+  $("#initialPasswordForm").addClass("d-none");
+  $("#login").removeClass("d-none");
+  $("#localSettings").removeClass("d-none");
 }
 
 function sendAuthMsg(password, isPersistent) {
-  let auth_req = {auth: {password, persistent_token: isPersistent}};
+  let auth_req = { auth: { password, persistent_token: isPersistent } };
   ws.send(JSON.stringify(auth_req));
 }
 
-$('#login>form').submit(function() {
-  const password = $('#password').val();
-  const rememberMe = $('#login .rememberMe').prop('checked');
+$("#login>form").submit(function () {
+  const password = $("#password").val();
+  const rememberMe = $("#login .rememberMe").prop("checked");
   sendAuthMsg(password, rememberMe);
 
-  $('#password').val('');
+  $("#password").val("");
 
   return false;
 });
 
 let isShowingInitialPasswordForm = false;
 function showInitialPasswordForm() {
-  $('#main').addClass('d-none');
-  $('#login').addClass('d-none');
-  $('#initialPasswordForm').removeClass('d-none');
-  $('#localSettings').removeClass('d-none');
+  $("#main").addClass("d-none");
+  $("#login").addClass("d-none");
+  $("#initialPasswordForm").removeClass("d-none");
+  $("#localSettings").removeClass("d-none");
   isShowingInitialPasswordForm = true;
 }
 
 function checkPassword() {
-  const form = $(this).parents('form');
+  const form = $(this).parents("form");
 
   const p = $(this).val();
   let isValid = false;
 
   if (p.length < 8) {
-    $(form).find('.hint').text('Minimum length: 8 characters');
+    $(form).find(".hint").text("Minimum length: 8 characters");
   } else {
-    $(form).find('.hint').text('');
+    $(form).find(".hint").text("");
     isValid = true;
   }
 
-  $(form).find('button[type=submit]').prop('disabled', !isValid);
+  $(form).find("button[type=submit]").prop("disabled", !isValid);
 }
-$('.set-password').on('input', checkPassword);
+$(".set-password").on("input", checkPassword);
 
 function sendPasswordFromInput(form) {
-  const passwordInput = $(form).find('input.set-password');
+  const passwordInput = $(form).find("input.set-password");
   const password = passwordInput.val();
 
-  passwordInput.val('');
-  $(form).find('button[type=submit]').prop('disabled', true);
+  passwordInput.val("");
+  $(form).find("button[type=submit]").prop("disabled", true);
 
-  ws.send(JSON.stringify({config: {password}}));
+  ws.send(JSON.stringify({ config: { password } }));
 
   return password;
 }
 
-$('#initialPasswordForm form').submit(function() {
+$("#initialPasswordForm form").submit(function () {
   const password = sendPasswordFromInput(this);
-  const remember = $(this).find('.rememberMe').prop('checked');
+  const remember = $(this).find(".rememberMe").prop("checked");
   sendAuthMsg(password, remember);
 
   return false;
 });
 
-$('form#updatePasswordForm').submit(function() {
+$("form#updatePasswordForm").submit(function () {
   sendPasswordFromInput(this);
 
   return false;
 });
 
 function checkRemoteKey() {
-  const remote_key = $('#remoteDeviceKey').val();
-  const disabled = (remote_key == config.remote_key);
-  $('#remoteKeyForm button[type=submit]').prop('disabled', disabled);
+  const remote_key = $("#remoteDeviceKey").val();
+  const disabled = remote_key == config.remote_key;
+  $("#remoteKeyForm button[type=submit]").prop("disabled", disabled);
 }
-$('#remoteDeviceKey').on('input', checkRemoteKey);
+$("#remoteDeviceKey").on("input", checkRemoteKey);
 
-$('#remoteKeyForm').submit(function() {
-  const remote_key = $('#remoteDeviceKey').val();
-  ws.send(JSON.stringify({config: {remote_key}}));
+$("#remoteKeyForm").submit(function () {
+  const remote_key = $("#remoteDeviceKey").val();
+  ws.send(JSON.stringify({ config: { remote_key } }));
   return false;
 });
 
-$('#logout').click(function() {
-  localStorage.removeItem('authToken');
-  ws.send(JSON.stringify({logout: true}));
+$("#logout").click(function () {
+  localStorage.removeItem("authToken");
+  ws.send(JSON.stringify({ logout: true }));
   showLoginForm();
 });
 
-$('.command-btn').click(function() {
-  const confirmationMsg = $(this).attr('data-confirmation');
+$(".command-btn").click(function () {
+  const confirmationMsg = $(this).attr("data-confirmation");
   if (!confirmationMsg || confirm(confirmationMsg)) {
     // convert to snake case
-    const cmd = this.id.split(/(?=[A-Z])/).join('_').toLowerCase();
+    const cmd = this.id
+      .split(/(?=[A-Z])/)
+      .join("_")
+      .toLowerCase();
     send_command(cmd);
   }
 });
 
 function showHidePassword() {
-  const inputField = $(this).parents('.input-group').find('input');
-  if(inputField.attr('type') == 'password') {
-    inputField.attr('type', 'text');
-    $(this).text('Hide');
+  const inputField = $(this).parents(".input-group").find("input");
+  if (inputField.attr("type") == "password") {
+    inputField.attr("type", "text");
+    $(this).text("Hide");
   } else {
-    inputField.attr('type', 'password');
-    $(this).text('Show');
+    inputField.attr("type", "password");
+    $(this).text("Show");
   }
 }
-$('button.showHidePassword').click(showHidePassword);
+$("button.showHidePassword").click(showHidePassword);
 
 function showHideRelayHint(addr) {
   const isCloudRelay = addr.match(/belabox.net$/);
   if (isCloudRelay) {
-    $('#cloudRelay').addClass('d-none');
+    $("#cloudRelay").addClass("d-none");
   } else {
-    $('#cloudRelay').removeClass('d-none');
+    $("#cloudRelay").removeClass("d-none");
   }
 }
 
-$('input#srtlaAddr').change(function() {
+$("input#srtlaAddr").change(function () {
   showHideRelayHint($(this).val());
 });
 
-$('#autoStart').change(function() {
-  if(this.checked) {
-    if (!confirm('Warning: Enabling this option will cause the encoder to start streaming automatically upon power-up or reset, potentially at unintended times. Do not enable this setting if automatic streaming poses any privacy or safety risks.')) {
+$("#autoStart").change(function () {
+  if (this.checked) {
+    if (
+      !confirm(
+        "Warning: Enabling this option will cause the encoder to start streaming automatically upon power-up or reset, potentially at unintended times. Do not enable this setting if automatic streaming poses any privacy or safety risks."
+      )
+    ) {
       this.checked = false;
     }
   }
 
-  const settingChanged = (this.checked != (config.autostart ?? false));
-  const form = $(this).parents('form');
-  $(form).find('button[type=submit]').prop('disabled', !settingChanged);
+  const settingChanged = this.checked != (config.autostart ?? false);
+  const form = $(this).parents("form");
+  $(form).find("button[type=submit]").prop("disabled", !settingChanged);
 });
 
-$('#autoStartForm').submit(function() {
-  const autostart = $('#autoStart').prop('checked');
-  ws.send(JSON.stringify({config: {autostart}}));
+$("#autoStartForm").submit(function () {
+  const autostart = $("#autoStart").prop("checked");
+  ws.send(JSON.stringify({ config: { autostart } }));
 
   return false;
 });
 
 /* Input fields automatically copied to clipboard when clicked */
 function copyInputValToClipboard(obj) {
-  if (!document.queryCommandSupported || !document.queryCommandSupported("copy")) {
+  if (
+    !document.queryCommandSupported ||
+    !document.queryCommandSupported("copy")
+  ) {
     return false;
   }
 
   let input = $(obj);
   let valField = input;
 
-  valField = $('<input>');
-  valField.css('position', 'fixed');
-  valField.css('top', '100000px');
+  valField = $("<input>");
+  valField.css("position", "fixed");
+  valField.css("top", "100000px");
   valField.val(input.val());
-  $('body').append(valField);
+  $("body").append(valField);
 
   let success = false;
   try {
@@ -1990,27 +2132,26 @@ function copyInputValToClipboard(obj) {
   return success;
 }
 
-$('input.click-copy').tooltip({title: 'Copied', trigger: 'manual'});
-$('input.click-copy').click(function(ev) {
+$("input.click-copy").tooltip({ title: "Copied", trigger: "manual" });
+$("input.click-copy").click(function (ev) {
   const target = ev.target;
   let input = $(ev.target);
 
   if (copyInputValToClipboard(target)) {
-    input.tooltip('show');
+    input.tooltip("show");
     if (target.copiedTooltipTimer) {
       clearTimeout(target.copiedTooltipTimer);
     }
-    target.copiedTooltipTimer = setTimeout(function() {
-      input.tooltip('hide');
+    target.copiedTooltipTimer = setTimeout(function () {
+      input.tooltip("hide");
       delete target.copiedTooltipTimer;
     }, 3000);
   }
 });
 
-
 /* Slider locking */
 function getSliderLockBtn(slider) {
-  return slider.parents('.form-group').find('.button-slider-lock-unlock');
+  return slider.parents(".form-group").find(".button-slider-lock-unlock");
 }
 
 function updateSliderLockState(slider, btn, isLocked) {
@@ -2018,35 +2159,35 @@ function updateSliderLockState(slider, btn, isLocked) {
     btn = getSliderLockBtn(slider);
   }
 
-  slider.slider('option', 'disabled', isLocked);
+  slider.slider("option", "disabled", isLocked);
   btn.text(isLocked ? "\u{1F512}" : "\u{1F513}");
 
-  if (!isLocked && sliderLockSetting == 'autolock') {
+  if (!isLocked && sliderLockSetting == "autolock") {
     setSliderAutolockTimer(slider);
   }
 }
 
 function setSliderAutolockTimer(slider) {
-  let lockTimer = slider.data('lockTimer');
+  let lockTimer = slider.data("lockTimer");
   if (lockTimer) {
     clearTimeout(lockTimer);
   }
 
   // If auto-locking is disabled, don't set another timer
-  if (sliderLockSetting != 'autolock') {
-    slider.data('lockTimer', null);
+  if (sliderLockSetting != "autolock") {
+    slider.data("lockTimer", null);
     return;
   }
 
-  lockTimer = setTimeout(function() {
+  lockTimer = setTimeout(function () {
     /* We have to check here too, in case autolocking was disabled
        between the event being set up and firing */
-    if (sliderLockSetting == 'autolock') {
+    if (sliderLockSetting == "autolock") {
       updateSliderLockState(slider, undefined, true);
     }
-    slider.data('lockTimer', null);
+    slider.data("lockTimer", null);
   }, 5000);
-  slider.data('lockTimer', lockTimer);
+  slider.data("lockTimer", lockTimer);
 }
 
 function initSliderLock(slider) {
@@ -2054,60 +2195,62 @@ function initSliderLock(slider) {
 
   // If the slider locks are disabled, remove the event handler and hide the lock button
   if (!sliderLockSetting) {
-    btn.parent().addClass('d-none');
-    btn.off('click');
+    btn.parent().addClass("d-none");
+    btn.off("click");
     return;
   }
 
-  const lockWasHidden = btn.parent().hasClass('d-none');
-  const isLocked = lockWasHidden ? true : slider.slider('option', 'disabled');
+  const lockWasHidden = btn.parent().hasClass("d-none");
+  const isLocked = lockWasHidden ? true : slider.slider("option", "disabled");
 
   updateSliderLockState(slider, btn, isLocked);
 
   if (lockWasHidden) {
     btn.click(function () {
-      const slider = $(btn).parents('.form-group').find('.slider');
-      const isLocked = slider.slider('option', 'disabled');
+      const slider = $(btn).parents(".form-group").find(".slider");
+      const isLocked = slider.slider("option", "disabled");
       updateSliderLockState(slider, btn, !isLocked);
     });
-    btn.parent().removeClass('d-none');
+    btn.parent().removeClass("d-none");
   }
 }
 
 /* Slider lock setting: load and update */
 function isTouchDevice() {
-  return (('ontouchstart' in window) ||
-     (navigator.maxTouchPoints > 0) ||
-     (navigator.msMaxTouchPoints > 0));
+  return (
+    "ontouchstart" in window ||
+    navigator.maxTouchPoints > 0 ||
+    navigator.msMaxTouchPoints > 0
+  );
 }
 function loadSliderLockSetting() {
-  let s = localStorage.getItem('sliderLocks');
+  let s = localStorage.getItem("sliderLocks");
   switch (s) {
-    case 'autolock':
-    case 'on':
+    case "autolock":
+    case "on":
       break;
-    case 'off':
+    case "off":
       break;
     default:
-      s = 'off';
-      // if (isTouchDevice()) s = 'autolock';
+      s = "off";
+    // if (isTouchDevice()) s = 'autolock';
   }
 
-  $('#sliderLockSetting>select').val(s);
+  $("#sliderLockSetting>select").val(s);
 
-  if (s != 'off') return s;
+  if (s != "off") return s;
 }
 let sliderLockSetting = loadSliderLockSetting();
 
-$('#sliderLockSetting>select').change(function () {
+$("#sliderLockSetting>select").change(function () {
   let s = $(this).val();
-  localStorage.setItem('sliderLocks', s);
-  if (s != 'on' && s != 'autolock') {
+  localStorage.setItem("sliderLocks", s);
+  if (s != "on" && s != "autolock") {
     s = undefined;
   }
   sliderLockSetting = s;
 
-  $('.slider').each(function () {
+  $(".slider").each(function () {
     initSliderLock($(this));
   });
 });

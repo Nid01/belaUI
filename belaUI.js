@@ -5389,7 +5389,7 @@ function getSystemdSocket() {
   return { fd: firstSystemdSocketFd };
 }
 
-const httpListenPorts = [80, 8080, 81];
+const httpListenPorts = [8080];// [80, 8080, 81];
 if (process.env.PORT) {
   httpListenPorts.unshift(process.env.PORT);
 }

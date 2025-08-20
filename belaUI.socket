@@ -3,7 +3,7 @@ Description=Listener socket for belaUI's HTTP server
 Before=nginx.service
 
 [Socket]
-ListenStream=80
+ListenStream=8080
 Accept=false
 
 [Install]

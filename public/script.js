@@ -72,7 +72,7 @@ if (window.matchMedia) {
 }
 
 function tryConnect() {
-  let c = new WebSocket("ws://" + window.location.host);
+  let c = new WebSocket("ws://" + window.location.host + "/ws/");
   c.addEventListener("message", function (event) {
     handleMessage(JSON.parse(event.data));
   });

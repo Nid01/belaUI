@@ -5218,6 +5218,19 @@ function sendInitialStatus(conn) {
   conn.send(buildMsg("revisions", revisions));
   conn.send(buildMsg("acodecs", audioCodecs));
   notificationSendPersistent(conn, true);
+
+  // Send storage info immediately to this client (so UI gets it without starting copy/prune)
+  (async () => {
+    try {
+      const source = "/mnt/microsdcard/DCIM/100GOPRO/";
+      const destination = "/mnt/usbssd/GoProRecordings/";
+      const sd = await getDiskUsage(source);
+      const ssd = await getDiskUsage(destination);
+      conn.send(buildMsg("storage", { sd, ssd }));
+    } catch (err) {
+      // ignore errors retrieving storage info for initial handshake
+    }
+  })();
 }
 
 function connAuth(conn, sendToken) {
@@ -5441,6 +5454,46 @@ if (config.autostart && !fs.existsSync(AUTOSTART_CHECK_FILE)) {
 }
 fs.writeFileSync(AUTOSTART_CHECK_FILE, "");
 
+// Storage usage broadcasting for file management UI
+async function getDiskUsage(p) {
+  try {
+    // Use df -B1 to get sizes in bytes, columns: Filesystem 1B-blocks Used Available Use% Mounted on
+    const res = await execP(`df -B1 -- ${p}`);
+    const out = res.stdout.trim().split("\n");
+    if (out.length < 2) return undefined;
+    // split by whitespace, but mount point may contain spaces — df keeps mounted-on as last column, so take first 6 tokens at most
+    const cols = out[1].trim().split(/\s+/);
+    // cols[1]=size, cols[2]=used, cols[3]=available, cols[4]=use%
+    const total = parseInt(cols[1], 10);
+    const used = parseInt(cols[2], 10);
+    const avail = parseInt(cols[3], 10);
+    const pct = parseInt((cols[4] || "0%").replace("%", ""), 10);
+    return {
+      total,
+      used,
+      avail,
+      percent: isNaN(pct) ? Math.round((used / total) * 100) : pct,
+    };
+  } catch (err) {
+    return undefined;
+  }
+}
+
+async function broadcastStorageInfo() {
+  const source = "/mnt/microsdcard/DCIM/100GOPRO/";
+  const destination = "/mnt/usbssd/GoProRecordings/";
+  const sd = await getDiskUsage(source);
+  const ssd = await getDiskUsage(destination);
+  // send to connected clients
+  broadcastMsg("storage", { sd, ssd });
+}
+
+// Broadcast storage immediately and periodically
+broadcastStorageInfo().catch(() => {});
+setInterval(() => {
+  broadcastStorageInfo().catch(() => {});
+}, 10000);
+
 // Copy and prune GoPro files implementation
 
 let copyGoProProc = null;
@@ -5537,6 +5590,9 @@ async function startCopyGoPro(conn) {
       files_total: totalFiles,
     },
   });
+
+  // update storage display immediately
+  broadcastStorageInfo().catch(() => {});
 
   // tracking state
   let sumCompletedBytes = 0; // bytes of files fully completed and accounted for
@@ -5814,6 +5870,8 @@ async function startCopyGoPro(conn) {
         files_total: totalFiles,
       },
     });
+    // refresh storage info
+    broadcastStorageInfo().catch(() => {});
     copyGoProProc = null;
   });
 
@@ -6084,4 +6142,6 @@ async function startPruneGoPro(conn) {
       files_checked: filesChecked,
     },
   });
+  // refresh storage info
+  broadcastStorageInfo().catch(() => {});
 }

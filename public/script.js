@@ -1772,6 +1772,9 @@ function handleMessage(msg) {
       case "prune_result":
         updatePruneResult(msg.prune_result);
         break;
+      case "storage":
+        updateStorage(msg.storage);
+        break;
     }
   }
 }
@@ -2409,4 +2412,41 @@ function updatePruneResult(r) {
       .css("width", "0%")
       .text("0%");
   }, 5000);
+}
+
+// storage UI updater
+function formatBytes(n) {
+  if (n === undefined) return "—";
+  const mb = n / 1024 / 1024 / 1024;
+  return `${mb.toFixed(3)} GB`;
+}
+
+function updateStorage(s) {
+  if (!s) return;
+
+  if (s.sd) {
+    const pct = Math.min(100, Math.max(0, Math.round(s.sd.percent || 0)));
+    $("#sdUsageBar")
+      .css("width", pct + "%")
+      .text(pct + "%");
+    $("#sdUsageText").text(
+      `${formatBytes(s.sd.used)} / ${formatBytes(s.sd.total)}`
+    );
+  } else {
+    $("#sdUsageBar").css("width", "0%").text("—");
+    $("#sdUsageText").text("—");
+  }
+
+  if (s.ssd) {
+    const pct = Math.min(100, Math.max(0, Math.round(s.ssd.percent || 0)));
+    $("#ssdUsageBar")
+      .css("width", pct + "%")
+      .text(pct + "%");
+    $("#ssdUsageText").text(
+      `${formatBytes(s.ssd.used)} / ${formatBytes(s.ssd.total)}`
+    );
+  } else {
+    $("#ssdUsageBar").css("width", "0%").text("—");
+    $("#ssdUsageText").text("—");
+  }
 }

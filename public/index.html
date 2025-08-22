@@ -79,8 +79,8 @@
             </div> <!-- .input-group -->
             <label class="mt-2"><input type="checkbox" class="rememberMe"> remember me</label>
             <button type="submit" class="btn btn-block mt-0 btn-success netact">Set password</button>
-            </div> <!-- .form-group -->
-            </form>
+          </div> <!-- .form-group -->
+          </form>
 
       </div>
     </div>
@@ -99,8 +99,8 @@
           <div class="col-auto pl-0 d-none">
             <button type="button" class="button-slider-lock-unlock btn py-0 px-2"></button>
           </div>
-          </div>
-          </div> <!-- .mb-4 -->
+        </div>
+        </div> <!-- .mb-4 -->
 
       <table class="table mb-4">
         <thead>
@@ -176,52 +176,72 @@
 
           </div> <!-- .modal-content -->
         </div> <!-- .modal-dialog -->
-        </div> <!-- .modal -->
+      </div> <!-- .modal -->
 
-        <div class="card mb-2" id="fileManagement">
-          <div class="card-header bg-success text-center" type="button" data-toggle="collapse" data-target="#collapseFive">
-            <button class="btn btn-link text-white" type="button" data-toggle="collapse" data-target="#collapseFive"
-              aria-expanded="false" aria-controls="collapseFive">
-              File management
+      <div class="card mb-2" id="fileManagement">
+        <div class="card-header bg-success text-center" type="button" data-toggle="collapse" data-target="#collapseFive">
+          <button class="btn btn-link text-white" type="button" data-toggle="collapse" data-target="#collapseFive"
+            aria-expanded="false" aria-controls="collapseFive">
+            File management
+          </button>
+        </div> <!-- card-header -->
+        
+        <div class="collapse show" id="collapseFive">
+          <div class="card-body">
+
+            <!-- Storage usage display -->
+            <div class="mb-2">
+              <div class="d-flex justify-content-between small">
+                <div>Micro SD card</div>
+                <div id="sdUsageText">—</div>
+              </div>
+              <div class="progress mt-1" style="height:14px;">
+                <div id="sdUsageBar" class="progress-bar bg-secondary" role="progressbar" style="width:0%">0%</div>
+              </div>
+            </div>
+            
+            <div class="mb-3">
+              <div class="d-flex justify-content-between small">
+                <div>USB SSD</div>
+                <div id="ssdUsageText">—</div>
+              </div>
+              <div class="progress mt-1" style="height:14px;">
+                <div id="ssdUsageBar" class="progress-bar bg-info" role="progressbar" style="width:0%">0%</div>
+              </div>
+            </div>
+            <!-- Copy GoPro files button + progress -->
+            <button type="button" id="copyGoPro" class="btn btn-block btn-info netact">
+              Copy GoPro MP4s to SSD
             </button>
-          </div> <!-- card-header -->
-        
-          <div class="collapse show" id="collapseFive">
-            <div class="card-body">
-        
-              <!-- Copy GoPro files button + progress -->
-              <button type="button" id="copyGoPro" class="btn btn-block btn-info netact">
-                Copy GoPro MP4s to SSD
-              </button>
-        
-              <!-- files progress (how many files done / total) -->
-              <div id="copyGoProProgressFiles" class="progress mt-2" style="height:18px;">
-                <div class="progress-bar bg-info" role="progressbar" style="width:0%">0%</div>
-              </div>
-        
-              <!-- current file progress (progress inside the currently copying file) -->
-              <div id="copyGoProProgressFile" class="progress mt-2" style="height:18px;">
-                <div class="progress-bar bg-secondary" role="progressbar" style="width:0%">0%</div>
-              </div>
-        
-              <div id="copyGoProStatus" class="small text-muted mt-2"></div>
-              
-              <!-- button to delete files on SD that are confirmed on SSD -->
-              <button type="button" id="pruneGoPro" class="btn btn-block btn-danger netact mt-2">
-                Delete confirmed files on SD card
-              </button>
-              
-              <!-- prune files progress (how many files pruned / total checked) -->
-              <div id="pruneGoProProgressFiles" class="progress mt-2" style="height:18px;">
-                <div class="progress-bar bg-danger" role="progressbar" style="width:0%">0%</div>
-              </div>
-              
-              <!-- prune status -->
-              <div id="pruneGoProStatus" class="small text-muted mt-2"></div>
-        
+            
+            <!-- files progress (how many files done / total) -->
+            <div id="copyGoProProgressFiles" class="progress mt-2" style="height:18px;">
+              <div class="progress-bar bg-info" role="progressbar" style="width:0%">0%</div>
+            </div>
+            
+            <!-- current file progress (progress inside the currently copying file) -->
+            <div id="copyGoProProgressFile" class="progress mt-2" style="height:18px;">
+              <div class="progress-bar bg-secondary" role="progressbar" style="width:0%">0%</div>
+            </div>
+            
+            <div id="copyGoProStatus" class="small text-muted mt-2"></div>
+            
+            <!-- button to delete files on SD that are confirmed on SSD -->
+            <button type="button" id="pruneGoPro" class="btn btn-block btn-danger netact mt-2">
+              Delete confirmed files on SD card
+            </button>
+            
+            <!-- prune files progress (how many files pruned / total checked) -->
+            <div id="pruneGoProProgressFiles" class="progress mt-2" style="height:18px;">
+              <div class="progress-bar bg-danger" role="progressbar" style="width:0%">0%</div>
+            </div>
+            
+            <!-- prune status -->
+            <div id="pruneGoProStatus" class="small text-muted mt-2"></div>
+            
             </div> <!-- .card-body -->
-          </div> <!-- .collapse -->
-        </div> <!-- .card -->
+            </div> <!-- .collapse -->
+            </div> <!-- .card -->
 
       <div id="wifi"></div>
 
@@ -257,16 +277,16 @@
                 <div class="col-auto pl-0 d-none">
                   <button type="button" class="button-slider-lock-unlock btn py-0 px-2"></button>
                 </div>
-                </div>
-                <div class="form-check form-group" id="bitrateOverlaySetting">
-                  <input class="form-check-input" type="checkbox" value="enabled" id="bitrateOverlay">
-                  <label class="form-check-label" for="bitrateOverlay">
-                    Enable the dynamic bitrate overlay
-                  </label>
-                </div>
-                </div> <!-- .card-body -->
-                </div> <!-- .collapse -->
-                </div> <!-- .card -->
+              </div>
+              <div class="form-check form-group" id="bitrateOverlaySetting">
+                <input class="form-check-input" type="checkbox" value="enabled" id="bitrateOverlay">
+                <label class="form-check-label" for="bitrateOverlay">
+                  Enable the dynamic bitrate overlay
+                </label>
+              </div>
+              </div> <!-- .card-body -->
+              </div> <!-- .collapse -->
+              </div> <!-- .card -->
 
         <div class="card mb-2">
           <div class="card-header bg-success text-center" type="button" data-toggle="collapse" data-target="#collapseTwo">
@@ -314,15 +334,15 @@
                 <div class="col-auto pl-0 d-none">
                   <button type="button" class="button-slider-lock-unlock btn py-0 px-2"></button>
                 </div>
-                </div>
-                <div id="latencyWarning" class="d-none alert alert-danger m-0">
-                  <p class="m-0">Recommended latency: 1500-2500ms</p>
+              </div>
+              <div id="latencyWarning" class="d-none alert alert-danger m-0">
+                <p class="m-0">Recommended latency: 1500-2500ms</p>
                 <p class="m-0">Setting the latency too low will increase glitching and reduce the bitrate that can be
                   sustained</p>
               </div>
-              </div> <!-- .card-body -->
-              </div> <!-- .collapse -->
-              </div> <!-- .card -->
+            </div> <!-- .card-body -->
+            </div> <!-- .collapse -->
+            </div> <!-- .card -->
 
         <div class="card mb-2" id="advancedSettings">
           <div class="card-header bg-success text-center" type="button" data-toggle="collapse" data-target="#collapseFour">
@@ -365,7 +385,7 @@
 
             </div> <!-- .card-body -->
           </div> <!-- .collapse -->
-          </div> <!-- .card -->
+        </div> <!-- .card -->
 
         <div class="card mb-2" id="system">
           <div class="card-header bg-success text-center" type="button" data-toggle="collapse" data-target="#collapseThree">
@@ -391,8 +411,8 @@
                       <button class="btn btn-outline-success netact" type="submit" disabled>Save</button>
                     </div> <!-- .input-group-append -->
                   </div> <!-- .input-group -->
-                  </div> <!-- .form-group -->
-                  </form>
+                </div> <!-- .form-group -->
+                </form>
 
               <form id="remoteKeyForm">
                 <div class="form-group">
@@ -406,8 +426,8 @@
                       <button class="btn btn-outline-success netact" type="submit" disabled>Save</button>
                     </div> <!-- .input-group-append -->
                   </div> <!-- .input-group -->
-                  </div> <!-- .form-group -->
-                  </form>
+                </div> <!-- .form-group -->
+                </form>
 
               <form id="autoStartForm" class="form-group">
                 <div class="input-group">
@@ -440,7 +460,7 @@
 
             </div> <!-- .card-body -->
           </div> <!-- .collapse -->
-          </div> <!-- .card -->
+        </div> <!-- .card -->
       </div> <!-- #settings -->
     </div> <!-- #main -->
 

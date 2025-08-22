@@ -1766,6 +1766,12 @@ function handleMessage(msg) {
       case "copy_result":
         updateCopyResult(msg.copy_result);
         break;
+      case "prune_progress":
+        updatePruneProgress(msg.prune_progress);
+        break;
+      case "prune_result":
+        updatePruneResult(msg.prune_result);
+        break;
     }
   }
 }
@@ -2344,6 +2350,62 @@ function updateCopyResult(r) {
   setTimeout(function () {
     $("#copyGoProProgress .progress-bar")
       .removeClass("bg-danger")
+      .css("width", "0%")
+      .text("0%");
+  }, 5000);
+}
+
+// Prune GoPro UI handlers
+$("#pruneGoPro").click(function () {
+  if (!ws) return;
+  const msg =
+    "Delete files from the SD card that are confirmed on the USB SSD? This will permanently remove files from the SD card.";
+  if (!confirm(msg)) return;
+
+  // initialize UI
+  $("#pruneGoProProgressFiles .progress-bar").css("width", "0%").text("0%");
+  $("#pruneGoPro").attr("disabled", true);
+
+  ws.send(JSON.stringify({ prune_gopro: { action: "start" } }));
+});
+
+function updatePruneProgress(p) {
+  const total = p.files_total || 0;
+  const pruned = p.files_pruned || 0;
+  const checked = p.files_checked || 0;
+
+  if (total > 0) {
+    const pct = Math.min(100, Math.round((pruned / total) * 100));
+    $("#pruneGoProProgressFiles .progress-bar")
+      .css("width", pct + "%")
+      .text(`${pruned} / ${total}`);
+  }
+
+  let status = p.status || "";
+  if (p.last_file) {
+    status = `${p.last_file} ${status}`.trim();
+  }
+  if (checked !== undefined && total !== undefined) {
+    status += `. Checked ${checked} / ${total}`;
+  }
+}
+
+function updatePruneResult(r) {
+  if (r.success) {
+    $("#pruneGoProStatus").text("Prune completed");
+    $("#pruneGoProProgressFiles .progress-bar")
+      .css("width", "100%")
+      .text("Done");
+  } else {
+    $("#pruneGoProStatus").text(
+      "Prune failed: " + (r.message || "unknown error")
+    );
+    $("#pruneGoProProgressFiles .progress-bar").addClass("bg-dark");
+  }
+  $("#pruneGoPro").removeAttr("disabled");
+  setTimeout(function () {
+    $("#pruneGoProProgressFiles .progress-bar")
+      .removeClass("bg-dark")
       .css("width", "0%")
       .text("0%");
   }, 5000);

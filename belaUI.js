@@ -5351,6 +5351,31 @@ function handleMessage(conn, msg, isRemote = false) {
           );
         }
         break;
+      case "prune_gopro":
+        try {
+          if (msg[type] && msg[type].action === "start") {
+            startPruneGoPro(conn).catch((err) => {
+              conn.send(
+                buildMsg("prune_result", {
+                  success: false,
+                  message: err.message,
+                })
+              );
+            });
+          } else {
+            conn.send(
+              buildMsg("prune_result", {
+                success: false,
+                message: "invalid prune_gopro message",
+              })
+            );
+          }
+        } catch (err) {
+          conn.send(
+            buildMsg("prune_result", { success: false, message: err.message })
+          );
+        }
+        break;
       case "logout":
         if (conn.authToken) {
           delete tempTokens[conn.authToken];
@@ -5795,5 +5820,268 @@ async function startCopyGoPro(conn) {
   copyGoProProc.on("error", (err) => {
     broadcastJSON({ copy_result: { success: false, message: err.message } });
     copyGoProProc = null;
+  });
+}
+
+async function startPruneGoPro(conn) {
+  if (pruneGoProProc) {
+    conn.send(
+      buildMsg("prune_result", {
+        success: false,
+        message: "Prune already running",
+      })
+    );
+    return;
+  }
+
+  const source = "/mnt/microsdcard/DCIM/100GOPRO/";
+  const destination = "/mnt/usbssd/GoProRecordings/";
+
+  // Verify source/destination exist
+  try {
+    if (!fs.existsSync(source)) {
+      conn.send(
+        buildMsg("prune_result", {
+          success: false,
+          message: "Source not found",
+        })
+      );
+      return;
+    }
+    if (!fs.existsSync(destination)) {
+      conn.send(
+        buildMsg("prune_result", {
+          success: false,
+          message: "Destination not mounted",
+        })
+      );
+      return;
+    }
+  } catch (err) {
+    conn.send(
+      buildMsg("prune_result", { success: false, message: err.message })
+    );
+    return;
+  }
+
+  // Gather file list under source (relative paths), and sizes
+  const files = [];
+
+  async function walk(dir, rel = "") {
+    let entries;
+    try {
+      entries = await readdirP(dir);
+    } catch (e) {
+      return;
+    }
+    for (const e of entries) {
+      const full = path.join(dir, e);
+      const relPath = path.join(rel, e);
+      try {
+        const st = fs.statSync(full);
+        if (st.isDirectory()) {
+          await walk(full, relPath);
+        } else if (st.isFile()) {
+          files.push({ rel: relPath, full, size: st.size });
+        }
+      } catch (err) {
+        // ignore unreadable entries
+      }
+    }
+  }
+
+  await walk(source);
+
+  const totalFiles = files.length;
+  let filesChecked = 0;
+  let filesPruned = 0;
+
+  // mark the prune proc so we don't start another concurrently
+  pruneGoProProc = true;
+
+  // Broadcast initial totals
+  broadcastJSON({
+    prune_progress: { percent: 0, status: "started", files_total: totalFiles },
+  });
+
+  for (const f of files) {
+    filesChecked++;
+
+    // If the source file is NOT an MP4, delete it immediately without checking destination
+    const ext = path.extname(f.rel).toLowerCase();
+    if (ext !== ".mp4") {
+      try {
+        const srcRoot = path.resolve(source);
+        const srcPath = path.resolve(f.full);
+        if (!srcPath.startsWith(srcRoot)) {
+          broadcastJSON({
+            prune_progress: {
+              status: `skipping invalid source path ${f.rel}`,
+              files_checked: filesChecked,
+              files_pruned: filesPruned,
+              files_total: totalFiles,
+              last_file: f.rel,
+            },
+          });
+        } else {
+          if (fs.existsSync(srcPath)) {
+            fs.unlinkSync(srcPath);
+            filesPruned++;
+            broadcastJSON({
+              prune_progress: {
+                status: "deleted (non-mp4)",
+                last_file: f.rel,
+                files_checked: filesChecked,
+                files_pruned: filesPruned,
+                files_total: totalFiles,
+              },
+            });
+          } else {
+            broadcastJSON({
+              prune_progress: {
+                status: "already missing",
+                last_file: f.rel,
+                files_checked: filesChecked,
+                files_pruned: filesPruned,
+                files_total: totalFiles,
+              },
+            });
+          }
+        }
+      } catch (err) {
+        broadcastJSON({
+          prune_progress: {
+            status: `delete failed: ${err.message}`,
+            last_file: f.rel,
+            files_checked: filesChecked,
+            files_pruned: filesPruned,
+            files_total: totalFiles,
+          },
+        });
+      }
+
+      // Small delay to keep UI responsive for very large sets
+      await new Promise((r) => setTimeout(r, 10));
+      continue;
+    }
+
+    // MP4 files: confirm on destination (existing behaviour)
+    const destPath = path.resolve(destination, f.rel);
+    const destRoot = path.resolve(destination);
+    if (!destPath.startsWith(destRoot)) {
+      // shouldn't happen for normal files, skip
+      broadcastJSON({
+        prune_progress: {
+          status: `skipping invalid path ${f.rel}`,
+          files_checked: filesChecked,
+          files_pruned: filesPruned,
+          files_total: totalFiles,
+          last_file: f.rel,
+        },
+      });
+      await new Promise((r) => setTimeout(r, 10));
+      continue;
+    }
+
+    let destStat;
+    try {
+      destStat = fs.statSync(destPath);
+    } catch (err) {
+      destStat = undefined;
+    }
+
+    if (destStat && destStat.isFile() && destStat.size === f.size) {
+      // Confirmed on destination — delete source file
+      try {
+        const srcRoot = path.resolve(source);
+        const srcPath = path.resolve(f.full);
+        if (srcPath.startsWith(srcRoot)) {
+          try {
+            if (fs.existsSync(srcPath)) {
+              fs.unlinkSync(srcPath);
+              filesPruned++;
+              broadcastJSON({
+                prune_progress: {
+                  status: "deleted",
+                  last_file: f.rel,
+                  files_checked: filesChecked,
+                  files_pruned: filesPruned,
+                  files_total: totalFiles,
+                },
+              });
+            } else {
+              broadcastJSON({
+                prune_progress: {
+                  status: "already missing",
+                  last_file: f.rel,
+                  files_checked: filesChecked,
+                  files_pruned: filesPruned,
+                  files_total: totalFiles,
+                },
+              });
+            }
+          } catch (err) {
+            broadcastJSON({
+              prune_progress: {
+                status: `delete failed: ${err.message}`,
+                last_file: f.rel,
+                files_checked: filesChecked,
+                files_pruned: filesPruned,
+                files_total: totalFiles,
+              },
+            });
+          }
+        } else {
+          broadcastJSON({
+            prune_progress: {
+              status: `refusing to unlink outside source directory: ${f.rel}`,
+              last_file: f.rel,
+              files_checked: filesChecked,
+              files_pruned: filesPruned,
+              files_total: totalFiles,
+            },
+          });
+        }
+      } catch (err) {
+        broadcastJSON({
+          prune_progress: {
+            status: `delete failed: ${err.message}`,
+            last_file: f.rel,
+            files_checked: filesChecked,
+            files_pruned: filesPruned,
+            files_total: totalFiles,
+          },
+        });
+      }
+    } else {
+      // Not found or size mismatch — skip
+      broadcastJSON({
+        prune_progress: {
+          status: "skipped (missing on dst or size mismatch)",
+          last_file: f.rel,
+          files_checked: filesChecked,
+          files_pruned: filesPruned,
+          files_total: totalFiles,
+        },
+      });
+    }
+
+    // Small delay to keep UI responsive for very large sets
+    await new Promise((r) => setTimeout(r, 10));
+  }
+
+  // Done
+  pruneGoProProc = null;
+  broadcastJSON({
+    prune_result: { success: true, message: `Pruned ${filesPruned} files` },
+  });
+  broadcastJSON({
+    prune_progress: {
+      percent: 100,
+      status: "done",
+      files_pruned: filesPruned,
+      files_total: totalFiles,
+      files_checked: filesChecked,
+    },
   });
 }

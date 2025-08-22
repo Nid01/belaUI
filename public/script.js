@@ -236,24 +236,6 @@ function updateSensors(sensors) {
   $("#sensors").html(sensorList);
 }
 
-function updateUsbSsd(files) {
-  const fileList = [];
-
-  for (const i in files) {
-    data = files[i];
-
-    const entryHtml = `
-      <tr>
-        <td class="file"></td>
-      </tr>`;
-    const entry = $($.parseHTML(entryHtml));
-    entry.find(".file").text(data);
-    fileList.push(entry);
-  }
-
-  $("#usbssd").html(fileList);
-}
-
 /* Remote status */
 let remoteConnectedHideTimer;
 function showRemoteStatus(status) {
@@ -1748,9 +1730,6 @@ function handleMessage(msg) {
       case "sensors":
         updateSensors(msg[type]);
         break;
-      case "usbssd":
-        updateUsbSsd(msg[type]);
-        break;
       case "status":
         updateStatus(msg[type]);
         break;
@@ -1780,6 +1759,12 @@ function handleMessage(msg) {
         break;
       case "acodecs":
         updateAudioCodecs(msg[type]);
+        break;
+      case "copy_progress":
+        updateCopyProgress(msg.copy_progress);
+        break;
+      case "copy_result":
+        updateCopyResult(msg.copy_result);
         break;
     }
   }
@@ -2275,3 +2260,91 @@ $("#sliderLockSetting>select").change(function () {
     initSliderLock($(this));
   });
 });
+
+// Copy GoPro UI handlers
+$("#copyGoPro").click(function () {
+  if (!ws) return;
+  const msg =
+    "Start copying MP4 files from SD card to USB SSD? Make sure the destination is mounted.";
+  if (!confirm(msg)) return;
+
+  // initialize UI
+  $("#copyGoProProgress .progress-bar").css("width", "0%").text("0%");
+  $("#copyGoProStatus").text("Queued...");
+  $("#copyGoPro").attr("disabled", true);
+
+  ws.send(JSON.stringify({ copy_gopro: { action: "start" } }));
+});
+
+function updateCopyProgress(p) {
+  // files progress (count of completed files / total files)
+  const filesTotal = p.files_total || 0;
+  const filesCopied = p.files_copied || 0;
+  if (filesTotal > 0) {
+    const filesPct = Math.min(
+      100,
+      Math.round((filesCopied / filesTotal) * 100)
+    );
+    $("#copyGoProProgressFiles .progress-bar")
+      .css("width", filesPct + "%")
+      .text(filesCopied + " / " + filesTotal);
+  }
+
+  // current file progress (subprogress of the file being copied)
+  // server may provide current_file_percent or current_file_transferred + current_file_total
+  let filePct = p.current_file_percent;
+  if (
+    filePct === undefined &&
+    p.current_file_transferred !== undefined &&
+    p.current_file_total
+  ) {
+    filePct = p.current_file_total
+      ? Math.min(
+          100,
+          Math.round((p.current_file_transferred / p.current_file_total) * 100)
+        )
+      : 0;
+  }
+  if (filePct !== undefined) {
+    $("#copyGoProProgressFile .progress-bar")
+      .css("width", filePct + "%")
+      .text(filePct + "%");
+  }
+
+  // overall percent (optional) - keep for backward compatibility
+  const overallPct = Math.min(100, Math.max(0, Math.round(p.percent || 0)));
+  $("#copyGoProProgress .progress-bar")
+    .css("width", overallPct + "%")
+    .text(overallPct + "%");
+
+  // status text
+  let status = p.status || "";
+  if (p.current_file) {
+    status = `${p.current_file} ${status}`.trim();
+  }
+  if (p.transferred !== undefined && p.total !== undefined) {
+    status += `. ${Math.round(p.transferred / 1024 / 1024)} MB / ${Math.round(
+      p.total / 1024 / 1024
+    )} MB.`;
+  }
+  $("#copyGoProStatus").text(status.trim());
+}
+
+function updateCopyResult(r) {
+  if (r.success) {
+    $("#copyGoProStatus").text("Copy completed");
+    $("#copyGoProProgress .progress-bar").css("width", "100%").text("100%");
+  } else {
+    $("#copyGoProStatus").text(
+      "Copy failed: " + (r.message || "unknown error")
+    );
+    $("#copyGoProProgress .progress-bar").addClass("bg-danger");
+  }
+  $("#copyGoPro").removeAttr("disabled");
+  setTimeout(function () {
+    $("#copyGoProProgress .progress-bar")
+      .removeClass("bg-danger")
+      .css("width", "0%")
+      .text("0%");
+  }, 5000);
+}

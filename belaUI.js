@@ -3504,20 +3504,6 @@ if (sensorsFunc) {
   setInterval(updateSensors, 1000);
 }
 
-let files = {};
-
-async function updateUsbSsd() {
-  try {
-    files = await readdirP("/mnt/usbssd");
-  } catch (err) {
-    console.log("Error in updateUsbSsd(): " + err);
-  }
-  broadcastMsg("usbssd", files);
-}
-
-updateUsbSsd();
-setInterval(updateUsbSsd, 1000 * 5);
-
 async function isServiceEnabled(service) {
   const isEnabled = await execPNR(`systemctl is-enabled ${service}`);
   return isEnabled.code === 0;
@@ -5340,6 +5326,31 @@ function handleMessage(conn, msg, isRemote = false) {
       case "modems":
         handleModems(conn, msg[type]);
         break;
+      case "copy_gopro":
+        try {
+          if (msg[type] && msg[type].action === "start") {
+            startCopyGoPro(conn).catch((err) => {
+              conn.send(
+                buildMsg("copy_result", {
+                  success: false,
+                  message: err.message,
+                })
+              );
+            });
+          } else {
+            conn.send(
+              buildMsg("copy_result", {
+                success: false,
+                message: "invalid copy_gopro message",
+              })
+            );
+          }
+        } catch (err) {
+          conn.send(
+            buildMsg("copy_result", { success: false, message: err.message })
+          );
+        }
+        break;
       case "logout":
         if (conn.authToken) {
           delete tempTokens[conn.authToken];
@@ -5389,7 +5400,7 @@ function getSystemdSocket() {
   return { fd: firstSystemdSocketFd };
 }
 
-const httpListenPorts = [8080];// [80, 8080, 81];
+const httpListenPorts = [8080]; // [80, 8080, 81];
 if (process.env.PORT) {
   httpListenPorts.unshift(process.env.PORT);
 }
@@ -5404,3 +5415,385 @@ if (config.autostart && !fs.existsSync(AUTOSTART_CHECK_FILE)) {
   autoStartStream();
 }
 fs.writeFileSync(AUTOSTART_CHECK_FILE, "");
+
+// Copy and prune GoPro files implementation
+
+let copyGoProProc = null;
+let pruneGoProProc = null;
+
+function broadcastJSON(obj) {
+  const s = JSON.stringify(obj);
+  wss.clients.forEach((c) => {
+    if (c.readyState === ws.OPEN) c.send(s);
+  });
+}
+
+async function startCopyGoPro(conn) {
+  if (copyGoProProc) {
+    // already running
+    conn.send(
+      JSON.stringify({
+        copy_result: { success: false, message: "Copy already running" },
+      })
+    );
+    return;
+  }
+
+  const source = "/mnt/microsdcard/DCIM/100GOPRO/";
+  const destination = "/mnt/usbssd/GoProRecordings/";
+
+  try {
+    fs.mkdirSync(destination, { recursive: true });
+  } catch (err) {
+    conn.send(
+      JSON.stringify({
+        copy_result: {
+          success: false,
+          message: "Failed to create destination: " + err.message,
+        },
+      })
+    );
+    return;
+  }
+
+  // calculate total bytes and file count (recursively) AND record per-file sizes
+  let totalSize = 0;
+  let totalFiles = 0;
+  const fileSizes = new Map(); // key: relative path as rsync will print it, value: size in bytes
+  async function walk(dir, rel = "") {
+    let entries;
+    try {
+      entries = await readdirP(dir);
+    } catch (e) {
+      return;
+    }
+    for (const e of entries) {
+      const p = path.join(dir, e);
+      const relPath = rel ? path.join(rel, e) : e;
+      try {
+        const st = fs.statSync(p);
+        if (st.isDirectory()) {
+          await walk(p, relPath);
+        } else if (st.isFile()) {
+          // Only consider MP4 files (case-insensitive). Adjust the regex to include other extensions if needed.
+          if (!relPath.match(/\.(mp4|MP4)$/)) continue;
+          totalFiles++;
+          totalSize += st.size;
+          // rsync --out-format=%n prints the filename relative to the source, so store the relative path
+          fileSizes.set(relPath, st.size);
+        }
+      } catch (err) {
+        // ignore unreadable entries
+      }
+    }
+  }
+
+  await walk(source);
+
+  const args = [
+    "-a",
+    "--info=progress",
+    "--include=*/",
+    "--include=*.MP4",
+    "--include=*.mp4",
+    "--exclude=*",
+    `--out-format=%n`,
+    source,
+    destination,
+  ];
+  copyGoProProc = spawn("rsync", args);
+
+  // initial broadcast with totals
+  broadcastJSON({
+    copy_progress: {
+      percent: 0,
+      status: "started",
+      total: totalSize,
+      files_total: totalFiles,
+    },
+  });
+
+  // tracking state
+  let sumCompletedBytes = 0; // bytes of files fully completed and accounted for
+  let filesCopied = 0;
+  const completedFiles = new Set();
+  let currentFileName = null; // the filename currently being transferred (from stdout %n)
+  let currentFileTransferred = 0; // bytes transferred for current file (from progress lines)
+
+  const progressPattern = /^\s*([0-9,]+)\s+([0-9]{1,3})%/; // matches "   123,456  12% ..."
+
+  const parseRsyncOutput = (chunk, isErr = false) => {
+    const txt = chunk.toString();
+    // handle both full lines, single-line carriage-return updates and lone '\r' updates
+    const lines = txt.split(/\r?\n|\r/);
+    for (const lineRaw of lines) {
+      if (!lineRaw) continue;
+      const line = lineRaw.trim();
+      if (line === "") continue;
+
+      // If a progress-like line appears (stdout or stderr), parse bytes + percent
+      const progMatch = line.match(progressPattern);
+      if (progMatch) {
+        const num = parseInt(progMatch[1].replace(/,/g, ""), 10);
+        const rsyncPct = parseInt(progMatch[2], 10);
+
+        // If we know current file and its size, treat `num` as bytes transferred for that file
+        if (currentFileName && fileSizes.has(currentFileName)) {
+          currentFileTransferred = num;
+          const currentFileTotal = fileSizes.get(currentFileName) || undefined;
+          const currentFilePercent = currentFileTotal
+            ? Math.min(
+                100,
+                Math.round((currentFileTransferred / currentFileTotal) * 100)
+              )
+            : rsyncPct;
+
+          // if file reached 100% consider it completed
+          if (currentFilePercent >= 100) {
+            if (!completedFiles.has(currentFileName)) {
+              completedFiles.add(currentFileName);
+              filesCopied++;
+              const fsize = currentFileTotal || 0;
+              sumCompletedBytes += fsize;
+
+              // Delete the source file that was successfully transferred.
+              // Be careful: resolve and ensure it is inside the source directory.
+              try {
+                const srcRoot = path.resolve(source);
+                const srcPath = path.resolve(srcRoot, currentFileName);
+                if (srcPath.startsWith(srcRoot)) {
+                  try {
+                    if (fs.existsSync(srcPath)) {
+                      fs.unlinkSync(srcPath);
+                      // Inform clients about deletion (optional status update)
+                      broadcastJSON({
+                        copy_progress: {
+                          status: `deleted ${currentFileName}`,
+                          files_copied: filesCopied,
+                          files_total: totalFiles,
+                        },
+                      });
+                    }
+                  } catch (err) {
+                    console.log(
+                      `Failed to delete transferred file ${srcPath}: ${err.message}`
+                    );
+                  }
+                } else {
+                  console.log(
+                    `Refusing to unlink outside source directory: ${srcPath}`
+                  );
+                }
+              } catch (err) {
+                console.log(
+                  `Error while attempting to delete ${currentFileName}: ${err.message}`
+                );
+              }
+            }
+            // reset current file tracking (next filename will set new currentFileName)
+            currentFileName = null;
+            currentFileTransferred = 0;
+          }
+
+          const overallBytes = sumCompletedBytes + currentFileTransferred;
+          const pct = totalSize
+            ? Math.min(100, Math.round((overallBytes / totalSize) * 100))
+            : rsyncPct;
+
+          broadcastJSON({
+            copy_progress: {
+              percent: pct,
+              transferred: overallBytes,
+              total: totalSize,
+              status: "running",
+              files_copied: filesCopied,
+              files_total: totalFiles,
+              current_file: currentFileName || undefined,
+              current_file_percent: currentFilePercent,
+              current_file_transferred: currentFileTransferred,
+              current_file_total: currentFileTotal,
+            },
+          });
+        } else {
+          // fallback: treat num as overall transferred when we don't know current file
+          const transferred = num;
+          const pct = totalSize
+            ? Math.min(100, Math.round((transferred / totalSize) * 100))
+            : rsyncPct;
+          broadcastJSON({
+            copy_progress: {
+              percent: pct,
+              transferred,
+              total: totalSize,
+              status: "running",
+              files_copied: filesCopied,
+              files_total: totalFiles,
+            },
+          });
+        }
+        continue;
+      }
+
+      // stdout: out-format prints completed file names (one per line) OR filename markers
+      if (!isErr) {
+        // ignore directory marker and rsync summary fragments
+        if (line === "./" || line.match(/\(xfr#\d+, to-chk=\d+\/\d+\)/)) {
+          continue;
+        }
+
+        const filename = line;
+        if (completedFiles.has(filename)) {
+          currentFileName = null;
+          currentFileTransferred = 0;
+          continue;
+        }
+
+        // Start tracking this file as the current file (its progress will follow as a progMatch)
+        currentFileName = filename;
+        currentFileTransferred = 0;
+        const currentFileTotal = fileSizes.get(currentFileName) || undefined;
+
+        // Broadcast that a new file started
+        broadcastJSON({
+          copy_progress: {
+            percent: totalSize
+              ? Math.min(100, Math.round((sumCompletedBytes / totalSize) * 100))
+              : 0,
+            transferred: sumCompletedBytes,
+            total: totalSize,
+            status: "running",
+            files_copied: filesCopied,
+            files_total: totalFiles,
+            current_file: currentFileName,
+            current_file_percent: 0,
+            current_file_transferred: 0,
+            current_file_total: currentFileTotal,
+          },
+        });
+        continue;
+      }
+
+      // stdout: out-format prints completed file names (one per line) OR filename markers
+      // Many rsync builds print the filename before progress lines; treat such a line as current filename
+      if (!isErr) {
+        // ignore directory marker and rsync summary fragments
+        if (line === "./" || line.match(/\(xfr#\d+, to-chk=\d+\/\d+\)/)) {
+          continue;
+        }
+
+        const filename = line;
+        // if we already marked it completed (some rsyncs print name twice), ignore
+        if (completedFiles.has(filename)) {
+          currentFileName = null;
+          currentFileTransferred = 0;
+          continue;
+        }
+
+        // Start tracking this file as the current file (its progress will follow as a progMatch)
+        currentFileName = filename;
+        currentFileTransferred = 0;
+
+        // Broadcast that a new file started (files_copied not incremented yet)
+        broadcastJSON({
+          copy_progress: {
+            percent: totalSize
+              ? Math.min(100, Math.round((sumCompletedBytes / totalSize) * 100))
+              : 0,
+            transferred: sumCompletedBytes,
+            total: totalSize,
+            status: "running",
+            files_copied: filesCopied,
+            files_total: totalFiles,
+            current_file: currentFileName,
+          },
+        });
+        continue;
+      }
+
+      // stderr fallback: forward any non-progress text as status
+      const totMatch = line.match(/total size is\s*([0-9,]+)/i);
+      if (totMatch && !totalSize) {
+        totalSize = parseInt(totMatch[1].replace(/,/g, ""), 10);
+        broadcastJSON({
+          copy_progress: { total: totalSize, files_total: totalFiles },
+        });
+        continue;
+      }
+
+      // fallback: forward stderr text as status
+      broadcastJSON({
+        copy_progress: {
+          status: line,
+          files_copied: filesCopied,
+          files_total: totalFiles,
+        },
+      });
+    }
+  };
+
+  copyGoProProc.stdout.on("data", (chunk) => parseRsyncOutput(chunk, false));
+  copyGoProProc.stderr.on("data", (chunk) => parseRsyncOutput(chunk, true));
+
+  copyGoProProc.on("close", (code, signal) => {
+    const success = code === 0;
+    // ensure final accounting: if a current file remained in-progress, add its size
+    if (
+      currentFileName &&
+      fileSizes.has(currentFileName) &&
+      !completedFiles.has(currentFileName)
+    ) {
+      completedFiles.add(currentFileName);
+      filesCopied++;
+      sumCompletedBytes += fileSizes.get(currentFileName) || 0;
+
+      // Try to delete the last file as well
+      try {
+        const srcRoot = path.resolve(source);
+        const srcPath = path.resolve(srcRoot, currentFileName);
+        if (srcPath.startsWith(srcRoot) && fs.existsSync(srcPath)) {
+          try {
+            fs.unlinkSync(srcPath);
+          } catch (err) {
+            console.log(
+              `Failed to delete transferred file ${srcPath}: ${err.message}`
+            );
+          }
+        }
+      } catch (err) {
+        console.log(
+          `Error while attempting to delete ${currentFileName}: ${err.message}`
+        );
+      }
+
+      currentFileName = null;
+      currentFileTransferred = 0;
+    }
+
+    broadcastJSON({
+      copy_result: {
+        success: success,
+        message: success
+          ? "Completed"
+          : `Exited code ${code}${signal ? " signal " + signal : ""}`,
+      },
+    });
+
+    // final progress update uses sumCompletedBytes
+    broadcastJSON({
+      copy_progress: {
+        percent: 100,
+        transferred: sumCompletedBytes,
+        total: totalSize || sumCompletedBytes,
+        status: success ? "done" : "error",
+        files_copied: filesCopied,
+        files_total: totalFiles,
+      },
+    });
+    copyGoProProc = null;
+  });
+
+  copyGoProProc.on("error", (err) => {
+    broadcastJSON({ copy_result: { success: false, message: err.message } });
+    copyGoProProc = null;
+  });
+}

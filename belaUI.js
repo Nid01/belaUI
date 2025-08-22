@@ -5618,6 +5618,24 @@ async function startCopyGoPro(conn) {
         const num = parseInt(progMatch[1].replace(/,/g, ""), 10);
         const rsyncPct = parseInt(progMatch[2], 10);
 
+        // try to extract an ETA token like "0:00:01" or "1:02:03" from the same line
+        const etaTokenMatch = line.match(/(\d+:){0,2}\d{1,2}:\d{2}/);
+        let currentFileEtaText = undefined;
+        let currentFileEta = undefined;
+        if (etaTokenMatch) {
+          currentFileEtaText = etaTokenMatch[0];
+          const parts = currentFileEtaText
+            .split(":")
+            .map((s) => parseInt(s, 10));
+          if (parts.length === 3) {
+            currentFileEta = parts[0] * 3600 + parts[1] * 60 + parts[2];
+          } else if (parts.length === 2) {
+            currentFileEta = parts[0] * 60 + parts[1];
+          } else {
+            currentFileEta = parts[0];
+          }
+        }
+
         // If we know current file and its size, treat `num` as bytes transferred for that file
         if (currentFileName && fileSizes.has(currentFileName)) {
           currentFileTransferred = num;
@@ -5674,6 +5692,8 @@ async function startCopyGoPro(conn) {
             // reset current file tracking (next filename will set new currentFileName)
             currentFileName = null;
             currentFileTransferred = 0;
+            currentFileEta = undefined;
+            currentFileEtaText = undefined;
           }
 
           const overallBytes = sumCompletedBytes + currentFileTransferred;
@@ -5693,6 +5713,9 @@ async function startCopyGoPro(conn) {
               current_file_percent: currentFilePercent,
               current_file_transferred: currentFileTransferred,
               current_file_total: currentFileTotal,
+              // ETA fields added:
+              current_file_eta: currentFileEta,
+              current_file_eta_text: currentFileEtaText,
             },
           });
         } else {
@@ -5701,14 +5724,27 @@ async function startCopyGoPro(conn) {
           const pct = totalSize
             ? Math.min(100, Math.round((transferred / totalSize) * 100))
             : rsyncPct;
+          // When announcing a new current file (stdout filename line), clear ETA fields
+          // Broadcast that a new file started
           broadcastJSON({
             copy_progress: {
-              percent: pct,
-              transferred,
+              percent: totalSize
+                ? Math.min(
+                    100,
+                    Math.round((sumCompletedBytes / totalSize) * 100)
+                  )
+                : 0,
+              transferred: sumCompletedBytes,
               total: totalSize,
               status: "running",
               files_copied: filesCopied,
               files_total: totalFiles,
+              current_file: currentFileName,
+              current_file_percent: 0,
+              current_file_transferred: 0,
+              current_file_total: currentFileTotal,
+              current_file_eta: undefined,
+              current_file_eta_text: undefined,
             },
           });
         }

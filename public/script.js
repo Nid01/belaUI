@@ -2286,6 +2286,20 @@ $("#copyGoPro").click(function () {
 });
 
 function updateCopyProgress(p) {
+  // helper to format seconds to H:MM:SS or M:SS
+  const formatTime = (secs) => {
+    if (secs === undefined || secs === null || isNaN(secs)) return undefined;
+    secs = Math.max(0, Math.round(secs));
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    if (h > 0)
+      return `${h}:${m.toString().padStart(2, "0")}:${s
+        .toString()
+        .padStart(2, "0")}`;
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  };
+
   // files progress (count of completed files / total files)
   const filesTotal = p.files_total || 0;
   const filesCopied = p.files_copied || 0;
@@ -2300,7 +2314,6 @@ function updateCopyProgress(p) {
   }
 
   // current file progress (subprogress of the file being copied)
-  // server may provide current_file_percent or current_file_transferred + current_file_total
   let filePct = p.current_file_percent;
   if (
     filePct === undefined &&
@@ -2326,7 +2339,7 @@ function updateCopyProgress(p) {
     .css("width", overallPct + "%")
     .text(overallPct + "%");
 
-  // status text
+  // status text (include ETA if available)
   let status = p.status || "";
   if (p.current_file) {
     status = `${p.current_file} ${status}`.trim();
@@ -2336,6 +2349,18 @@ function updateCopyProgress(p) {
       p.total / 1024 / 1024
     )} MB.`;
   }
+
+  // prefer human ETA text from server, fall back to numeric seconds
+  let etaText;
+  if (p.current_file_eta_text) {
+    etaText = p.current_file_eta_text;
+  } else if (p.current_file_eta !== undefined) {
+    etaText = formatTime(p.current_file_eta);
+  }
+  if (etaText) {
+    status = `${status} ETA: ${etaText}`.trim();
+  }
+
   $("#copyGoProStatus").text(status.trim());
 }
 

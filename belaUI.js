@@ -5341,20 +5341,58 @@ function handleMessage(conn, msg, isRemote = false) {
         break;
       case "copy_gopro":
         try {
+          // start or stop/abort copy request
           if (msg[type] && msg[type].action === "start") {
-            startCopyGoPro(conn).catch((err) => {
+            startCopyGoPro(conn);
+          } else if (
+            msg[type] &&
+            (msg[type].action === "stop" || msg[type].action === "abort")
+          ) {
+            if (!copyGoProProc) {
               conn.send(
                 buildMsg("copy_result", {
                   success: false,
-                  message: err.message,
+                  message: "No copy running",
                 })
               );
-            });
+            } else {
+              try {
+                // notify clients we're aborting
+                broadcastJSON({ copy_progress: { status: "aborting" } });
+                conn.send(
+                  buildMsg("copy_result", {
+                    success: true,
+                    message: "Aborting",
+                  })
+                );
+
+                // attempt graceful termination, escalate to SIGKILL if needed
+                const proc = copyGoProProc;
+                try {
+                  proc.kill("SIGTERM");
+                } catch (err) {
+                  // ignore
+                }
+                const killer = setTimeout(() => {
+                  try {
+                    if (proc && proc.kill) proc.kill("SIGKILL");
+                  } catch (e) {}
+                }, 2000);
+                proc.on("close", () => clearTimeout(killer));
+              } catch (err) {
+                conn.send(
+                  buildMsg("copy_result", {
+                    success: false,
+                    message: err.message,
+                  })
+                );
+              }
+            }
           } else {
             conn.send(
               buildMsg("copy_result", {
                 success: false,
-                message: "invalid copy_gopro message",
+                message: "Invalid action",
               })
             );
           }

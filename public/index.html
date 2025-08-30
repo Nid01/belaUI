@@ -80,7 +80,7 @@
             <label class="mt-2"><input type="checkbox" class="rememberMe"> remember me</label>
             <button type="submit" class="btn btn-block mt-0 btn-success netact">Set password</button>
           </div> <!-- .form-group -->
-          </form>
+        </form>
 
       </div>
     </div>
@@ -100,7 +100,7 @@
             <button type="button" class="button-slider-lock-unlock btn py-0 px-2"></button>
           </div>
         </div>
-        </div> <!-- .mb-4 -->
+      </div> <!-- .mb-4 -->
 
       <table class="table mb-4">
         <thead>
@@ -185,7 +185,7 @@
             File management
           </button>
         </div> <!-- card-header -->
-        
+
         <div class="collapse show" id="collapseFive">
           <div class="card-body">
 
@@ -199,7 +199,7 @@
                 <div id="sdUsageBar" class="progress-bar bg-secondary" role="progressbar" style="width:0%">0%</div>
               </div>
             </div>
-            
+
             <div class="mb-3">
               <div class="d-flex justify-content-between small">
                 <div>USB SSD</div>
@@ -213,35 +213,39 @@
             <button type="button" id="copyGoPro" class="btn btn-block btn-info netact">
               Copy GoPro MP4s to SSD
             </button>
-            
+
+            <!-- Abort copy button (hidden until copying) -->
+            <button type="button" id="abortCopyGoPro" class="btn btn-block btn-warning netact d-none" disabled>
+              Abort copy
+            </button>
+
             <!-- files progress (how many files done / total) -->
             <div id="copyGoProProgressFiles" class="progress mt-2" style="height:18px;">
               <div class="progress-bar bg-info" role="progressbar" style="width:0%">0%</div>
             </div>
-            
+
             <!-- current file progress (progress inside the currently copying file) -->
             <div id="copyGoProProgressFile" class="progress mt-2" style="height:18px;">
               <div class="progress-bar bg-secondary" role="progressbar" style="width:0%">0%</div>
             </div>
-            
+
             <div id="copyGoProStatus" class="small text-muted mt-2"></div>
-            
+
             <!-- button to delete files on SD that are confirmed on SSD -->
             <button type="button" id="pruneGoPro" class="btn btn-block btn-danger netact mt-2">
               Delete confirmed files on SD card
             </button>
-            
+
             <!-- prune files progress (how many files pruned / total checked) -->
             <div id="pruneGoProProgressFiles" class="progress mt-2" style="height:18px;">
               <div class="progress-bar bg-danger" role="progressbar" style="width:0%">0%</div>
             </div>
-            
+
             <!-- prune status -->
             <div id="pruneGoProStatus" class="small text-muted mt-2"></div>
-            
-            </div> <!-- .card-body -->
-            </div> <!-- .collapse -->
-            </div> <!-- .card -->
+</div> <!-- .card-body -->
+</div> <!-- .collapse -->
+</div> <!-- .card -->
 
       <div id="wifi"></div>
 
@@ -284,9 +288,9 @@
                   Enable the dynamic bitrate overlay
                 </label>
               </div>
-              </div> <!-- .card-body -->
-              </div> <!-- .collapse -->
-              </div> <!-- .card -->
+            </div> <!-- .card-body -->
+            </div> <!-- .collapse -->
+            </div> <!-- .card -->
 
         <div class="card mb-2">
           <div class="card-header bg-success text-center" type="button" data-toggle="collapse" data-target="#collapseTwo">
@@ -341,8 +345,8 @@
                   sustained</p>
               </div>
             </div> <!-- .card-body -->
-            </div> <!-- .collapse -->
-            </div> <!-- .card -->
+          </div> <!-- .collapse -->
+          </div> <!-- .card -->
 
         <div class="card mb-2" id="advancedSettings">
           <div class="card-header bg-success text-center" type="button" data-toggle="collapse" data-target="#collapseFour">
@@ -412,7 +416,7 @@
                     </div> <!-- .input-group-append -->
                   </div> <!-- .input-group -->
                 </div> <!-- .form-group -->
-                </form>
+              </form>
 
               <form id="remoteKeyForm">
                 <div class="form-group">
@@ -427,7 +431,7 @@
                     </div> <!-- .input-group-append -->
                   </div> <!-- .input-group -->
                 </div> <!-- .form-group -->
-                </form>
+              </form>
 
               <form id="autoStartForm" class="form-group">
                 <div class="input-group">

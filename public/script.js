@@ -2282,7 +2282,20 @@ $("#copyGoPro").click(function () {
   $("#copyGoProStatus").text("Queued...");
   $("#copyGoPro").attr("disabled", true);
 
+  // show and enable abort button
+  $("#abortCopyGoPro").removeClass("d-none");
+  $("#abortCopyGoPro").removeAttr("disabled");
+
   ws.send(JSON.stringify({ copy_gopro: { action: "start" } }));
+});
+
+// Abort copy click handler
+$("#abortCopyGoPro").click(function () {
+  if (!ws) return;
+  if (!confirm("Abort the ongoing copy operation?")) return;
+  // Disable abort button immediately to avoid repeated clicks
+  $("#abortCopyGoPro").attr("disabled", true);
+  ws.send(JSON.stringify({ copy_gopro: { action: "stop" } }));
 });
 
 function updateCopyProgress(p) {
@@ -2362,6 +2375,20 @@ function updateCopyProgress(p) {
   }
 
   $("#copyGoProStatus").text(status.trim());
+
+  // Show/hide abort button depending on state
+  // Consider 'running' and 'started' as abortable; if server sends 'aborting' show as disabled
+  const s = (p.status || "").toString().toLowerCase();
+  if (s === "running" || s === "started") {
+    $("#abortCopyGoPro").removeClass("d-none");
+    $("#abortCopyGoPro").removeAttr("disabled");
+  } else if (s === "aborting") {
+    $("#abortCopyGoPro").removeClass("d-none");
+    $("#abortCopyGoPro").attr("disabled", true);
+  } else {
+    $("#abortCopyGoPro").addClass("d-none");
+    $("#abortCopyGoPro").attr("disabled", true);
+  }
 }
 
 function updateCopyResult(r) {
@@ -2375,6 +2402,11 @@ function updateCopyResult(r) {
     $("#copyGoProProgress .progress-bar").addClass("bg-danger");
   }
   $("#copyGoPro").removeAttr("disabled");
+
+  // hide/disable abort button when finished/errored
+  $("#abortCopyGoPro").addClass("d-none");
+  $("#abortCopyGoPro").attr("disabled", true);
+
   setTimeout(function () {
     $("#copyGoProProgress .progress-bar")
       .removeClass("bg-danger")

@@ -5654,7 +5654,7 @@ async function startCopyGoPro(conn) {
               filesCopied++;
               const fsize = currentFileTotal || 0;
               sumCompletedBytes += fsize;
-              
+            }
             // reset current file tracking (next filename will set new currentFileName)
             currentFileName = null;
             currentFileTransferred = 0;

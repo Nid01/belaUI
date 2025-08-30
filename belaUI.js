@@ -5684,35 +5684,6 @@ async function startCopyGoPro(conn) {
               current_file_eta_text: currentFileEtaText,
             },
           });
-        } else {
-          // fallback: treat num as overall transferred when we don't know current file
-          const transferred = num;
-          const pct = totalSize
-            ? Math.min(100, Math.round((transferred / totalSize) * 100))
-            : rsyncPct;
-          // When announcing a new current file (stdout filename line), clear ETA fields
-          // Broadcast that a new file started
-          broadcastJSON({
-            copy_progress: {
-              percent: totalSize
-                ? Math.min(
-                    100,
-                    Math.round((sumCompletedBytes / totalSize) * 100)
-                  )
-                : 0,
-              transferred: sumCompletedBytes,
-              total: totalSize,
-              status: "running",
-              files_copied: filesCopied,
-              files_total: totalFiles,
-              current_file: currentFileName,
-              current_file_percent: 0,
-              current_file_transferred: 0,
-              current_file_total: currentFileTotal,
-              current_file_eta: undefined,
-              current_file_eta_text: undefined,
-            },
-          });
         }
         continue;
       }

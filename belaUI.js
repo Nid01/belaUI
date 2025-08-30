@@ -5654,41 +5654,7 @@ async function startCopyGoPro(conn) {
               filesCopied++;
               const fsize = currentFileTotal || 0;
               sumCompletedBytes += fsize;
-
-              // Delete the source file that was successfully transferred.
-              // Be careful: resolve and ensure it is inside the source directory.
-              try {
-                const srcRoot = path.resolve(source);
-                const srcPath = path.resolve(srcRoot, currentFileName);
-                if (srcPath.startsWith(srcRoot)) {
-                  try {
-                    if (fs.existsSync(srcPath)) {
-                      fs.unlinkSync(srcPath);
-                      // Inform clients about deletion (optional status update)
-                      broadcastJSON({
-                        copy_progress: {
-                          status: `deleted ${currentFileName}`,
-                          files_copied: filesCopied,
-                          files_total: totalFiles,
-                        },
-                      });
-                    }
-                  } catch (err) {
-                    console.log(
-                      `Failed to delete transferred file ${srcPath}: ${err.message}`
-                    );
-                  }
-                } else {
-                  console.log(
-                    `Refusing to unlink outside source directory: ${srcPath}`
-                  );
-                }
-              } catch (err) {
-                console.log(
-                  `Error while attempting to delete ${currentFileName}: ${err.message}`
-                );
-              }
-            }
+              
             // reset current file tracking (next filename will set new currentFileName)
             currentFileName = null;
             currentFileTransferred = 0;
